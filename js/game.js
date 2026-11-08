@@ -139,11 +139,83 @@
     popups.push({ text, color: color || "#fff", t: 0, big: !!big });
   }
 
+  // ---------- Packing ----------
+  // Every item adds weight (wobblier, more tiring, slower legs). Leaving useful ones out makes sections harder.
+  const BASE_KG = 7;
+  const ITEMS = [
+    { id: "poles", name: "Trekking poles", kg: 0.5, icon: "🥢", does: "Lets you use POLES at all" },
+    { id: "jacket", name: "Rain jacket", kg: 0.8, icon: "🧥", does: "Drizzle won't soak you (no extra drain)" },
+    { id: "spikes", name: "Grippy socks", kg: 0.4, icon: "🧦", does: "Much less slipping on wet rock" },
+    { id: "snickers", name: "3 Snickers", kg: 0.3, icon: "🍫", does: "Eaten instead of a sit-down when you run out" },
+    { id: "water", name: "2L of water", kg: 2.0, icon: "💧", does: "Stamina recovers while walking" },
+    { id: "windproof", name: "Down jacket", kg: 0.9, icon: "🧣", does: "Halves the wind gusts" },
+    { id: "brace", name: "Knee brace", kg: 0.3, icon: "🦵", does: "Downhills tip you forward less" },
+    { id: "khata", name: "Lucky khata scarf", kg: 0.1, icon: "🧡", does: "Saves you from one fall" },
+    { id: "speaker", name: "Bluetooth speaker", kg: 1.2, icon: "🔊", does: "Tunes! Small morale (stamina) boost" },
+    { id: "pillow", name: "Full-size pillow", kg: 1.3, icon: "🛏️", does: "Teahouse pillows are rubbish. No effect." }
+  ];
+  let pack = new Set(["poles", "jacket", "snickers"]);
+  try { const saved = JSON.parse(localStorage.getItem("qt-pack") || "null"); if (Array.isArray(saved)) pack = new Set(saved); } catch (e) {}
+  const has = (id) => pack.has(id);
+  const packKg = () => BASE_KG + ITEMS.reduce((a, it) => a + (pack.has(it.id) ? it.kg : 0), 0);
+  const extraKg = () => packKg() - BASE_KG; // 0 .. ~7.8
+  const packEl = document.getElementById("packing");
+
+  function forecast() {
+    const bits = [];
+    const types = new Set(L.weather.map((w) => w.type));
+    if (types.has("drizzle")) bits.push("🌧️ drizzle");
+    if (types.has("wind")) bits.push("💨 wind gusts");
+    if ((L.wet || []).length) bits.push("🪨 wet rock");
+    if (L.bridge) bits.push("🌉 wobbly bridge");
+    const maxG = L.profile.reduce((a, p, i) => i ? Math.max(a, (p[1] - L.profile[i - 1][1]) / ((p[0] - L.profile[i - 1][0]) * 1000)) : a, 0);
+    if (maxG > 0.15) bits.push("⛰️ steep climbs");
+    const minG = L.profile.reduce((a, p, i) => i ? Math.min(a, (p[1] - L.profile[i - 1][1]) / ((p[0] - L.profile[i - 1][0]) * 1000)) : a, 0);
+    if (minG < -0.08) bits.push("📉 downhills");
+    return bits.join(" · ");
+  }
+  function renderPacking() {
+    const kg = packKg();
+    const load = kg < 8.5 ? "Light and nimble" : kg < 10.5 ? "Sensible" : kg < 12.5 ? "Heavy going" : "Porter-grade";
+    packEl.innerHTML = `<div class="pcard">
+      <div class="ptitle">Pack Ryan's bag</div>
+      <div class="psub">${L.title}</div>
+      <div class="pfore">Forecast: ${forecast()}</div>
+      <div class="pitems">${ITEMS.map((it) => `<button class="pitem ${pack.has(it.id) ? "on" : ""}" data-item="${it.id}">
+        <span class="pi">${it.icon}</span><span class="pn">${it.name}<small>${it.does}</small></span><span class="pk">${it.kg} kg</span></button>`).join("")}</div>
+      <div class="pweight">Pack: <b>${kg.toFixed(1)} kg</b> · ${load}<div class="pbar"><i style="width:${Math.min(100, (kg - BASE_KG) / 7.8 * 100)}%"></i></div>
+      <small>Heavier = wobblier, slower legs, more tiring</small></div>
+      <button class="pgo" data-item="go">Hit the trail ▶ <small style="font-size:0.7em;opacity:0.75">(${kg.toFixed(1)} kg)</small></button>
+    </div>`;
+  }
+  function openPacking() {
+    state = "packing"; controlsEl.classList.remove("show");
+    renderPacking(); packEl.classList.add("show");
+  }
+  packEl.addEventListener("click", (e) => {
+    e.stopPropagation(); Sound.init();
+    const b = e.target.closest("[data-item]"); if (!b) return;
+    const id = b.dataset.item;
+    if (id === "go") {
+      packEl.classList.remove("show");
+      try { localStorage.setItem("qt-pack", JSON.stringify([...pack])); } catch (err) {}
+      P.snickers = has("snickers") ? 3 : 0; P.khata = has("khata");
+      state = "play"; controlsEl.classList.toggle("show", isTouch);
+      controlsEl.querySelector('[data-act="P"]').style.opacity = has("poles") ? 1 : 0.35;
+      popup(L.title, "#fff", true);
+      if (has("speaker")) popup("🔊 tunes on", "#9fef9f");
+      return;
+    }
+    if (pack.has(id)) pack.delete(id); else pack.add(id);
+    renderPacking();
+  });
+
   // ---------- Input ----------
   function startOrStep(leg) {
     Sound.init();
     if (paused) return;
-    if (state === "title") { state = "play"; controlsEl.classList.toggle("show", isTouch); popup(L.title, "#fff", true); return; }
+    if (state === "title") { openPacking(); return; }
+    if (state === "packing") return;
     if (state === "finished") {
       if (t - stats.finishT > 1.5) {
         // on to the next day (or back to the title after the last one)
@@ -156,6 +228,7 @@
   }
 
   function selectLevel(i) {
+    packEl.classList.remove("show");
     levelIdx = (i + window.LEVELS.length) % window.LEVELS.length;
     try { localStorage.setItem("qt-level", levelIdx); } catch (e) {}
     newGame(); for (const f of P.feet) f.y = footY(f.x);
@@ -163,6 +236,7 @@
     state = "title"; controlsEl.classList.remove("show");
   }
   window.addEventListener("keydown", (e) => {
+    if (state === "packing") { if (e.code === "Enter") packEl.querySelector(".pgo").click(); return; }
     if (state === "title" && !e.repeat) {
       // choose the day on the title screen
       if (e.code === "ArrowLeft" || e.code === "KeyA") { selectLevel(levelIdx - 1); e.preventDefault(); return; }
@@ -232,7 +306,7 @@
     e.stopPropagation(); e.preventDefault();
     const act = e.target.dataset && e.target.dataset.pause;
     if (act === "resume") resume();
-    else if (act === "restart") { openMenu(); startOrStep(-1); }
+    else if (act === "restart") { openMenu(); openPacking(); }
     else if (act === "days") openMenu();
   });
   document.addEventListener("visibilitychange", () => { if (document.hidden && (state === "play" || state === "fallen")) pause(); });
@@ -302,7 +376,7 @@
       }
       void slopeF; void since;
       P.leanVel += 0.38 * (stride / BASE_STRIDE) + Math.max(0, -g) * 0.7;
-      if (onWet(P.x) && !input.poles && Math.random() < 0.4) {
+      if (onWet(P.x) && !input.poles && Math.random() < (has("spikes") ? 0.1 : 0.4)) {
         // foot skates on wet stone
         P.leanVel += (Math.random() < 0.5 ? -1 : 1) * (1.0 + Math.random() * 0.8);
         stride *= 0.6;
@@ -312,7 +386,11 @@
       if (inBridge(P.x)) bridge.amp = Math.min(0.55, bridge.amp + (input.poles ? 0.03 : 0.08));
       Sound.step();
     }
-    P.stamina = Math.max(0, P.stamina - (0.3 + stride * stride * 0.55 + Math.max(0, g) * stride * 3.6) * (1 + altFactor() * 0.5));
+    P.stamina = Math.max(0, P.stamina - (0.3 + stride * stride * 0.55 + Math.max(0, g) * stride * 3.6) * (1 + altFactor() * 0.5) * (1 + extraKg() * 0.06));
+    if (P.stamina <= 0 && !P.exhausted && P.snickers > 0) {
+      P.snickers--; P.stamina = 40; Sound.snack();
+      popup(`Emergency Snickers! (${P.snickers} left)`, "#ffe28a", true);
+    }
     if (P.stamina <= 0 && !P.exhausted) {
       P.exhausted = true; P.swing = null;
       popup(["Ryan's knackered. Sit-down break!", "Out of puff. Bum on a rock.", "Legs have filed a complaint."][stats.steps % 3], "#ffb08a", true);
@@ -395,6 +473,7 @@
     if (state === "finished") return;
 
     playTime += dt;
+    if (input.poles && !has("poles")) { input.poles = false; popup("No poles packed!", "#ffb08a"); }
 
     for (const d of dust) { d.t += dt; d.x += d.vx * dt; d.y += d.vy * dt; }
     dust = dust.filter((d) => d.t < 0.6);
@@ -405,7 +484,7 @@
     if (gust.t > 0) gust.t -= dt; else gust.force = 0;
     if (weatherIntensity.wind > 0.5 && gust.next <= 0) {
       gust.t = 1.1; gust.next = 3 + Math.random() * 3;
-      gust.force = (Math.random() < 0.65 ? -1 : 1) * (1.2 + Math.random() * 1.2);
+      gust.force = (Math.random() < 0.65 ? -1 : 1) * (1.2 + Math.random() * 1.2) * (has("windproof") ? 0.5 : 1);
       popup(gust.force < 0 ? "headwind!" : "tailwind!", "#cfe8ff");
       Sound.gust();
     }
@@ -413,17 +492,17 @@
     // Balance: an inverted pendulum with a helping hand (auto-balance), more help with poles
     const g = grade(P.x);
     const alt = altFactor();
-    const slopeTorque = g > 0 ? -g * 1.3 : -g * 1.7;
-    const wobbleAmp = 0.5 + alt * 1.5 + (P.stamina < 20 ? 0.9 : 0) + weatherIntensity.drizzle * 0.5;
+    const slopeTorque = g > 0 ? -g * 1.3 : -g * 1.7 * (has("brace") ? 0.6 : 1);
+    const wobbleAmp = 0.5 + extraKg() * 0.07 + alt * 1.5 + (P.stamina < 20 ? 0.9 : 0) + weatherIntensity.drizzle * 0.5;
     const wobble = (Math.sin(t * 1.3) + Math.sin(t * 2.7 + 1) * 0.6 + Math.sin(t * 4.3 + 2) * 0.3) / 1.9 * wobbleAmp;
-    const auto = input.poles ? 11 : 3.9;
+    const auto = input.poles ? 11 : 3.9 - extraKg() * 0.08;
     const damp = input.poles ? 4.5 : 1.6;
     const leanInput = (input.fwd ? 1 : 0) - (input.back ? 1 : 0);
     let swingTorque = 0;
     if (P.swing) {
       const sw = P.swing, good = maxGoodReach();
       sw.t += dt;
-      sw.reach = Math.min(4, sw.t * SWING_RATE * (P.stamina < 35 ? 0.7 + 0.3 * (P.stamina / 35) : 1));
+      sw.reach = Math.min(4, sw.t * SWING_RATE * (1 - extraKg() * 0.025) * (P.stamina < 35 ? 0.7 + 0.3 * (P.stamina / 35) : 1));
       const f = P.feet[sw.leg];
       const fx = P.x - 0.25 + sw.reach * 0.7;
       f.x = f.fromX = f.toX = fx; f.t = 1;
@@ -443,7 +522,7 @@
     if (onB && !bridge.on) { popup("Suspension bridge! Don't look down.", "#fff", true); bridge.amp = 0.15; }
     bridge.on = onB;
     const bridgeSway = onB ? Math.sin(t * 2.8) * (0.6 + bridge.amp * 4) : 0;
-    const wetWobble = onWet(P.x) ? Math.sin(t * 7.3) * 0.5 : 0;
+    const wetWobble = onWet(P.x) ? Math.sin(t * 7.3) * (has("spikes") ? 0.2 : 0.5) : 0;
     let acc = swingTorque + bridgeSway + wetWobble + 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
     if (leanInput) acc -= P.leanVel * 1.2; // a bit of extra control while actively leaning
     if (shake > 0) shake -= dt;
@@ -468,9 +547,13 @@
     P.prevX = P.x;
 
     // Stamina recovers while resting
-    let rest = t - P.lastStepT > 0.7 ? (input.poles ? 11 : 7) : 0.5;
+    let rest = t - P.lastStepT > 0.7 ? (input.poles ? 11 : 7) : 0.5 + (has("water") ? 1.0 : 0) + (has("speaker") ? 0.4 : 0);
+    if (!has("jacket") && weatherIntensity.drizzle > 0.5) {
+      rest -= 1.6 * weatherIntensity.drizzle; // soaked and cold
+      if (!P.soakedMsg) { P.soakedMsg = true; popup("No rain jacket. Soaked!", "#9fd8ff", true); }
+    }
     if (P.exhausted) rest = 14;
-    P.stamina = Math.min(100, P.stamina + dt * rest * (1 - altFactor() * 0.35));
+    P.stamina = Math.max(0, Math.min(100, P.stamina + dt * rest * (rest > 0 ? 1 - altFactor() * 0.35 : 1)));
     if (P.exhausted) {
       P.lean *= 1 - dt * 3; P.leanVel *= 1 - dt * 3; // sitting is very stable
       if (P.stamina >= 45) { P.exhausted = false; popup("right, onwards", "#9fef9f"); }
@@ -492,6 +575,10 @@
     updatePorters(dt);
     updateMutter(dt, g);
 
+    if (Math.abs(P.lean) > FALL_ANGLE && P.khata) {
+      P.khata = false; P.lean = Math.sign(P.lean) * 0.3; P.leanVel = 0;
+      popup("The lucky khata saved you!", "#ffd34d", true);
+    }
     if (Math.abs(P.lean) > FALL_ANGLE) startFall(Math.sign(P.lean));
 
     if (P.x >= END_X - 1) {
@@ -828,9 +915,11 @@
     // backpack
     if (!opts.noPack) {
       ctx.fillStyle = look.pack;
-      roundRect(-0.36, 0.0, 0.26, 0.66, 0.07); ctx.fill();
+      const ps = opts.packScale || 1;
+      roundRect(-0.1 - 0.26 * ps, 0.0, 0.26 * ps, 0.66 * Math.sqrt(ps), 0.07); ctx.fill();
       ctx.fillStyle = look.packTop;
-      roundRect(-0.38, 0.5, 0.3, 0.2, 0.06); ctx.fill();
+      roundRect(-0.12 - 0.26 * ps, 0.5 * Math.sqrt(ps), 0.3 * ps, 0.2 * Math.sqrt(ps), 0.06); ctx.fill();
+      if (opts.pillow) { ctx.fillStyle = "#f2f2f2"; roundRect(-0.15 - 0.28 * ps, 0.66 * Math.sqrt(ps), 0.36 * ps, 0.18, 0.08); ctx.fill(); }
       ctx.fillStyle = "rgba(0,0,0,0.18)";
       ctx.fillRect(-0.34, 0.18, 0.22, 0.04);
     }
@@ -1267,7 +1356,7 @@
       const sw = Math.sin(P.armSwing) * 0.22;
       arms = [[shX - sw, shY - 0.55], [shX + sw, shY - 0.55]];
     }
-    drawHiker(RYAN, P.x, hy, P.feet, lean, { arms, poles, face: true });
+    drawHiker(RYAN, P.x, hy, P.feet, lean, { arms, poles, face: true, packScale: 1 + extraKg() * 0.09, pillow: has("pillow") });
     // sweat drops when tired
     if (P.stamina < 25) {
       ctx.fillStyle = "rgba(120,190,255,0.85)";
@@ -1356,6 +1445,9 @@
     ctx.fillRect(pad + 10, sy, bw * P.stamina / 100, 8);
     ctx.font = "10px sans-serif"; ctx.fillStyle = "#fff"; ctx.textBaseline = "middle";
     ctx.fillText(P.exhausted ? "knackered: resting..." : P.stamina < 35 ? "stamina: legs heavy" : "stamina", pad + 14, sy + 4);
+    ctx.textAlign = "right";
+    ctx.fillText(`${packKg().toFixed(1)}kg${P.snickers ? "  🍫×" + P.snickers : ""}${P.khata ? "  🧡" : ""}`, pad + pw - 12, top + (sm ? 45 : 50) + 1);
+    ctx.textAlign = "left";
 
     // Altimeter (right side)
     const ax = W - (sm ? 44 : 56), ay = top + 84, ah = Math.min(sm ? 110 : 150, H * 0.3);
@@ -1481,7 +1573,7 @@
       [stats.time < ghost.total ? "You beat Ghost Ryan!" : `Ghost Ryan got there ${fmtTime(stats.time - ghost.total)} earlier. (Real Ryan: ${r.moving} moving.)`, 15, stats.time < ghost.total ? "#9fef9f" : "#cfe6ff"],
       [`Your steps: ${stats.steps}   ·   Ryan's steps: ${r.steps.toLocaleString()}`, 18],
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
-      [`Falls: ${stats.falls}   ·   Sit-downs: ${stats.rests || 0}   ·   Bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
+      [`Pack: ${packKg().toFixed(1)} kg   ·   Falls: ${stats.falls}   ·   Sit-downs: ${stats.rests || 0}   ·   Bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
       [levelIdx < window.LEVELS.length - 1 ? "Next: " + window.LEVELS[levelIdx + 1].title : "More days coming soon...", 16, "#aaa"]
     ], levelIdx < window.LEVELS.length - 1 ? (isTouch ? "Tap for the next day" : "Press any key for the next day") : (isTouch ? "Tap to return to the start" : "Press any key to return to the start"));

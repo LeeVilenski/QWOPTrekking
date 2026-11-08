@@ -14,6 +14,9 @@ Play: open `index.html` in a browser (works on desktop and phones). No build ste
 - `js/audio.js`: generated music and sound effects.
 - `assets/ryan-face.png` (optional): a square, front-on face photo. If present, it replaces the drawn face.
 
+## Packing
+Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower legs, more tiring), and leaving useful items out makes certain sections harder (no poles, no rain jacket in the drizzle, slippery rock without grippy socks...). The packing screen shows the day's forecast.
+
 ## Days
 - Day 1: Up up up (ACA checkpoint to the teahouse, 3.62 km)
 - Day 2: Ulleri to Ghorepani (7.89 km, +848 m)
