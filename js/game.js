@@ -176,6 +176,7 @@
     else if (k === "KeyW" || k === "ArrowUp") { input.fwd = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
     else if (k === "KeyS" || k === "ArrowDown") { input.back = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
     else if (k === "KeyM") toggleMute();
+    else if (k === "Escape") { if (state !== "title") openMenu(); }
     else if (state !== "play") startOrStep(-1);
   });
   window.addEventListener("keyup", (e) => {
@@ -214,6 +215,9 @@
   }
   function toggleMute() { Sound.init(); const m = Sound.toggleMute(); muteBtn.textContent = m ? "×" : "♪"; muteBtn.style.opacity = m ? 0.6 : 1; }
   muteBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); toggleMute(); });
+  // Back to the title screen to pick a day (or restart this one)
+  function openMenu() { Sound.init(); input.poles = input.fwd = input.back = false; P.swing = null; selectLevel(levelIdx); }
+  document.getElementById("menu").addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); openMenu(); });
   window.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // ---------- Mechanics ----------
@@ -1377,7 +1381,7 @@
       ctx.globalAlpha = Math.min(1, (12 - playTime) / 2);
       ctx.font = "15px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      const msg = "Hold A / D to swing a leg, release to plant  ·  W / S: lean  ·  SPACE: poles";
+      const msg = "Hold A / D to swing a leg, release to plant  ·  W / S: lean  ·  SPACE: poles  ·  ESC: menu";
       ctx.strokeText(msg, W / 2, H - 30); ctx.fillText(msg, W / 2, H - 30);
       ctx.globalAlpha = 1;
     }

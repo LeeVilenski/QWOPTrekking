@@ -20,6 +20,8 @@
   .btn.mid { flex: 0.8; }
   .btn.lean { flex: 0.7; background: rgba(255,210,80,0.25); font-size: 17px; }
   .btn.down { background: rgba(255,255,255,0.6); }
+  #menu { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 62px; width: 44px; height: 44px;
+    border-radius: 50%; border: none; background: rgba(0,0,0,0.35); color: #fff; font-size: 20px; cursor: pointer; }
   #mute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px;
     border-radius: 50%; border: none; background: rgba(0,0,0,0.35); color: #fff; font-size: 20px; cursor: pointer; }
 </style>
@@ -34,6 +36,7 @@
   <div class="btn lean" data-act="F">FWD<br>▶</div>
 </div>
 <button id="mute" aria-label="Toggle sound">♪</button>
+<button id="menu" aria-label="Back to day select">☰</button>
 <script src="js/levels.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>
