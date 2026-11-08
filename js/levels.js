@@ -38,6 +38,11 @@ window.LEVELS = [
       { km: 3.62, type: "teahouse" }
     ],
     donkeys: [0.75, 1.7, 2.75],
+    // Suspension bridge over the Modi Khola near the start [fromKm, toKm]
+    bridge: [0.12, 0.22],
+    // Wet, slippery stone by the waterfall and in the drizzle
+    wet: [[1.12, 1.32], [1.85, 1.95]],
+    porters: [0.45, 1.4, 2.2, 3.05],
     friends: [
       { km: 0.85, say: "Morning Ryan!" },
       { km: 2.4, say: "Up up up!" }

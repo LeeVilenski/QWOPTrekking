@@ -51,17 +51,32 @@
     return p[p.length - 1][1];
   }
   function bumps(x) { return Math.sin(x * 0.9) * 0.08 + Math.sin(x * 2.3 + 1) * 0.04 + Math.sin(x * 0.21) * 0.25; }
-  function groundY(x) {
+  function baseGround(x) {
     x = Math.max(-40, Math.min(END_X + 40, x));
     return (elevAt(xToKm(x)) - BASE_ELEV) / H_SCALE * V_EXAG + bumps(x);
   }
+  // Suspension bridge: a sagging, bouncing deck between two anchors
+  const bridge = { a: 0, b: 0, amp: 0, on: false };
+  function inBridge(x) { return L.bridge && x > bridge.a && x < bridge.b; }
+  function bridgeY(x) {
+    const u = (x - bridge.a) / (bridge.b - bridge.a);
+    const ya = baseGround(bridge.a), yb = baseGround(bridge.b);
+    return ya + (yb - ya) * u - Math.sin(Math.PI * u) * 1.1 + Math.sin(Math.PI * u) * Math.sin(t * 5.5) * bridge.amp;
+  }
+  function groundY(x) { return inBridge(x) ? bridgeY(x) : baseGround(x); }
+  function gorgeY(x) {
+    if (!inBridge(x)) return baseGround(x);
+    const u = (x - bridge.a) / (bridge.b - bridge.a);
+    return Math.min(baseGround(x), groundY(x)) - Math.pow(Math.sin(Math.PI * u), 0.3) * 30;
+  }
+  function onWet(x) { return inZone(L.wet || [], x); }
   function inZone(zones, x) {
     const km = xToKm(x);
     for (const z of zones) if (km >= z[0] && km <= z[1]) return true;
     return false;
   }
   const STEP_W = 0.55;
-  function onStairs(x) { return inZone(L.stairs, x); }
+  function onStairs(x) { return !inBridge(x) && inZone(L.stairs, x); }
   function footY(x) {
     if (!onStairs(x)) return groundY(x);
     const xs = Math.floor(x / STEP_W) * STEP_W;
@@ -81,13 +96,17 @@
   let t = 0, playTime = 0;
   let P; // player
   let snacks, friends, popups, gust, weatherIntensity, rainDrops;
-  let stats, donkeyTrains, donkeys, dust, shake = 0, nextMutter = 6, mutter = null;
+  let porters, ghost, stats, donkeyTrains, donkeys, dust, shake = 0, nextMutter = 6, mutter = null;
   const input = { poles: false, fwd: false, back: false };
 
   function newGame() {
     L = window.LEVELS[0];
     BASE_ELEV = L.profile[0][1];
     END_X = kmToX(L.lengthKm);
+    if (L.bridge) { bridge.a = kmToX(L.bridge[0]); bridge.b = kmToX(L.bridge[1]); }
+    bridge.amp = 0; bridge.on = false;
+    porters = (L.porters || []).map((km, i) => ({ triggerX: kmToX(km), x: null, phase: 0, done: false, hit: false, load: i % 3, sayT: 0 }));
+    buildGhost();
     const x0 = 2;
     P = {
       x: x0, targetX: x0, lean: 0, leanVel: 0, stamina: 100,
@@ -111,6 +130,7 @@
   for (const f of P.feet) f.y = footY(f.x);
 
   function popup(text, color, big) {
+    if (!big && popups.some((p) => !p.big && p.t < 0.8)) return;
     popups.push({ text, color: color || "#fff", t: 0, big: !!big });
   }
 
@@ -189,6 +209,14 @@
         popup("too fast!", "#ffb08a");
       }
       P.leanVel += 0.55 * (stride / BASE_STRIDE) + Math.max(0, -g) * 0.7;
+      if (onWet(P.x) && !input.poles && Math.random() < 0.4) {
+        // foot skates on wet stone
+        P.leanVel += (Math.random() < 0.5 ? -1 : 1) * (1.0 + Math.random() * 0.8);
+        stride *= 0.4;
+        popup(["slippery!", "whoa whoa whoa", "wet rock!"][Math.random() * 3 | 0], "#9fd8ff");
+        Sound.shuffle();
+      }
+      if (inBridge(P.x)) bridge.amp = Math.min(0.55, bridge.amp + (input.poles ? 0.03 : 0.08));
       Sound.step();
     }
     P.stamina = Math.max(0, P.stamina - (0.22 + Math.max(0, g) * 1.7));
@@ -205,7 +233,7 @@
   function startFall(dir) {
     const g = grade(P.x);
     let slide = g > 0.03 ? -1 : g < -0.03 ? 1 : 0;
-    const dist = 2.5 + Math.random() * 4 + Math.abs(g) * 6;
+    const dist = 1.5 + Math.random() * 2.5 + Math.abs(g) * 4;
     P.fall = { t: 0, dir, slide, dist, startX: P.x, rot: 0 };
     stats.falls++;
     shake = 0.5;
@@ -289,10 +317,17 @@
     const slopeTorque = g > 0 ? -g * 1.3 : -g * 1.7;
     const wobbleAmp = 0.5 + alt * 1.5 + (P.stamina < 20 ? 0.9 : 0) + weatherIntensity.drizzle * 0.5;
     const wobble = (Math.sin(t * 1.3) + Math.sin(t * 2.7 + 1) * 0.6 + Math.sin(t * 4.3 + 2) * 0.3) / 1.9 * wobbleAmp;
-    const auto = input.poles ? 11 : 3.5;
+    const auto = input.poles ? 11 : 3.9;
     const damp = input.poles ? 4.5 : 1.6;
     const leanInput = (input.fwd ? 1 : 0) - (input.back ? 1 : 0);
-    let acc = 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
+    // bridge bounce and sway
+    bridge.amp = Math.max(0, bridge.amp - dt * 0.12);
+    const onB = inBridge(P.x);
+    if (onB && !bridge.on) { popup("Suspension bridge! Don't look down.", "#fff", true); bridge.amp = 0.15; }
+    bridge.on = onB;
+    const bridgeSway = onB ? Math.sin(t * 2.8) * (0.6 + bridge.amp * 4) : 0;
+    const wetWobble = onWet(P.x) ? Math.sin(t * 7.3) * 0.5 : 0;
+    let acc = bridgeSway + wetWobble + 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
     if (leanInput) acc -= P.leanVel * 1.2; // a bit of extra control while actively leaning
     if (shake > 0) shake -= dt;
     P.leanVel += acc * dt;
@@ -331,6 +366,7 @@
 
     updateFriends(dt);
     updateDonkeys(dt);
+    updatePorters(dt);
     updateMutter(dt, g);
 
     if (Math.abs(P.lean) > FALL_ANGLE) startFall(Math.sign(P.lean));
@@ -364,6 +400,158 @@
     }
   }
   function idleFriends() {}
+
+  // Porters with absurd loads overtake you. They nudge you if you don't make way (poles).
+  function updatePorters(dt) {
+    for (const p of porters) {
+      if (p.done) continue;
+      if (p.x === null && P.x > p.triggerX) { p.x = P.x - 12; popup("Porter coming through!", "#ffd34d"); }
+      if (p.x === null) continue;
+      p.x += dt * 1.45;
+      p.phase += dt * 1.45 / 0.4;
+      if (!p.hit && !P.fall && Math.abs(p.x - P.x) < 0.4) {
+        p.hit = true; p.sayT = t;
+        if (!input.poles) { P.leanVel += 1.4; shake = 0.15; popup("nudged by a porter", "#ffb08a"); }
+      }
+      if (p.x > P.x + 25) p.done = true;
+    }
+  }
+
+  // Ghost Ryan: his real Day 1 moving time, sped up so it is a fair race in the game
+  var GHOST_SPEEDUP = 9;
+  function buildGhost() {
+    const total = L.ryan.movingSec / (GHOST_SPEEDUP || 9);
+    const xs = [], ts = [];
+    let acc = 0;
+    for (let x = 0; x <= END_X; x += 1) {
+      const g = Math.max(0, grade(x));
+      xs.push(x); ts.push(acc);
+      acc += 1 + g * 4; // slower uphill
+    }
+    const k = total / acc;
+    ghost = { xs, ts: ts.map((v) => v * k), total, phase: 0 };
+  }
+  function ghostX(time) {
+    const ts = ghost.ts;
+    if (time >= ts[ts.length - 1]) return END_X;
+    let lo = 0, hi = ts.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ts[m] <= time) lo = m; else hi = m; }
+    return ghost.xs[lo] + (time - ts[lo]) / (ts[hi] - ts[lo]);
+  }
+  function ghostTimeAt(x) { const i = Math.max(0, Math.min(ghost.ts.length - 1, Math.floor(x))); return ghost.ts[i]; }
+
+  function drawPorters() {
+    for (const p of porters) {
+      if (p.x === null || p.done) continue;
+      const look = { skin: "#b07a52", hair: "#1a1a1a", shirt: "#4a5a7a", shorts: "#333", boot: "#222", pack: "#a07a3a", packTop: "#a07a3a", cap: "#c95", glasses: false };
+      const ph = p.phase * Math.PI;
+      const feet = [0, 1].map((i) => { const q = ph + i * Math.PI; const fx = p.x + Math.cos(q) * 0.28; return { x: fx, y: footY(fx) + Math.max(0, Math.sin(q)) * 0.12 }; });
+      const hy = groundY(p.x) + 0.85;
+      const lean = 0.45;
+      // the load: doko basket with something ridiculous on top
+      ctx.save(); ctx.translate(p.x, hy); ctx.rotate(-lean);
+      ctx.fillStyle = "#a9864a"; ctx.fillRect(-0.62, 0.0, 0.5, 0.75);
+      ctx.strokeStyle = "rgba(80,50,20,0.6)"; ctx.lineWidth = 0.03;
+      for (let i = 0.1; i < 0.75; i += 0.12) { ctx.beginPath(); ctx.moveTo(-0.62, i); ctx.lineTo(-0.12, i); ctx.stroke(); }
+      if (p.load === 0) { // a fridge
+        ctx.fillStyle = "#e8e8e8"; ctx.fillRect(-0.7, 0.7, 0.66, 1.4);
+        ctx.fillStyle = "#999"; ctx.fillRect(-0.12, 1.2, 0.04, 0.4); ctx.fillRect(-0.7, 1.55, 0.66, 0.02);
+      } else if (p.load === 1) { // stacked crates of beer
+        const cs = ["#c0392b", "#2f6fd6", "#27ae60", "#e3a81f", "#c0392b"];
+        cs.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(-0.68, 0.72 + i * 0.3, 0.6, 0.28); });
+      } else { // gas cylinders and a chicken
+        ctx.fillStyle = "#b73b2f"; for (let i = 0; i < 3; i++) { roundRect(-0.66 + i * 0.18, 0.72, 0.16, 0.8, 0.06); ctx.fill(); }
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(-0.4, 1.68, 0.16, 0.12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#d33"; ctx.fillRect(-0.3, 1.78, 0.05, 0.06);
+      }
+      ctx.restore();
+      drawHiker(look, p.x, hy, feet, lean, { arms: [[p.x + 0.1, hy + 0.2], [p.x + 0.2, hy + 0.25]], noPack: true });
+      // tumpline strap over the forehead
+      const hx = p.x + Math.sin(lean) * 0.77, hyy = hy + Math.cos(lean) * 0.77;
+      ctx.strokeStyle = "#6b4a2a"; ctx.lineWidth = 0.04;
+      ctx.beginPath(); ctx.moveTo(hx + 0.05, hyy + 0.08); ctx.lineTo(p.x - 0.3, hy + 0.55); ctx.stroke();
+      if (p.sayT && t - p.sayT < 2.2) wText(["Namaste!", "Bistaarai!", "Excuse me, sir"][p.load], p.x, hy + 2.6, 0.3, "#fff", "center", true);
+    }
+  }
+
+  function drawGhost() {
+    if (state !== "play" && state !== "fallen") return;
+    const gx = ghostX(playTime);
+    if (Math.abs(gx - camX) > W / S) return;
+    const ph = gx / 0.55 * Math.PI;
+    const feet = [0, 1].map((i) => { const q = ph + i * Math.PI; const fx = gx + Math.cos(q) * 0.33; return { x: fx, y: footY(fx) + Math.max(0, Math.sin(q)) * 0.14 }; });
+    const hy = groundY(gx) + 0.92;
+    ctx.globalAlpha = 0.35;
+    drawHiker(RYAN, gx, hy, feet, Math.max(0, grade(gx)) * 0.4, { arms: [[gx - Math.sin(ph) * 0.2, hy + 0.05], [gx + Math.sin(ph) * 0.2, hy + 0.05]] });
+    ctx.globalAlpha = 1;
+    wText("Ghost Ryan", gx, hy + 1.4, 0.26, "#fff", "center", true);
+  }
+
+  function drawBridge() {
+    if (!L.bridge) return;
+    const [x0, x1] = viewRange();
+    if (bridge.b < x0 || bridge.a > x1) return;
+    // shadowy gorge beneath the deck
+    const bottom = camY - H / S - 2;
+    const grd = ctx.createLinearGradient(0, baseGround(bridge.a), 0, bottom);
+    grd.addColorStop(0, "rgba(40,60,45,0.85)"); grd.addColorStop(1, "rgba(15,25,20,0.95)");
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.moveTo(bridge.a, baseGround(bridge.a));
+    for (let x = bridge.a; x <= bridge.b; x += 0.25) ctx.lineTo(x, Math.min(baseGround(x), groundY(x)) - 0.2);
+    ctx.lineTo(bridge.b, baseGround(bridge.b)); ctx.lineTo(bridge.b, bottom); ctx.lineTo(bridge.a, bottom); ctx.closePath(); ctx.fill();
+    // rock walls
+    ctx.fillStyle = "#6b5a48";
+    for (const [ex, dir] of [[bridge.a, 1], [bridge.b, -1]]) {
+      ctx.beginPath(); ctx.moveTo(ex, baseGround(ex)); ctx.lineTo(ex + dir * 1.5, bottom); ctx.lineTo(ex - dir * 0.5, bottom); ctx.lineTo(ex - dir * 0.5, baseGround(ex)); ctx.fill();
+    }
+    // river in the gorge
+    const midX = (bridge.a + bridge.b) / 2;
+    ctx.fillStyle = "#6fa9c0";
+    ctx.fillRect(midX - 4, gorgeY(midX) - 0.2, 8, 1.2);
+    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 0.06;
+    for (let i = 0; i < 6; i++) { const rx = midX - 3.5 + ((i * 1.3 + t * 2) % 7); ctx.beginPath(); ctx.moveTo(rx, gorgeY(midX) + 0.5); ctx.lineTo(rx + 0.6, gorgeY(midX) + 0.5); ctx.stroke(); }
+    // towers
+    for (const ex of [bridge.a, bridge.b]) {
+      const y = baseGround(ex);
+      ctx.fillStyle = "#777"; ctx.fillRect(ex - 0.15, y, 0.3, 2.2);
+    }
+    // hand cables
+    ctx.strokeStyle = "#555"; ctx.lineWidth = 0.05;
+    ctx.beginPath();
+    for (let x = bridge.a; x <= bridge.b; x += 0.25) { const y = groundY(x) + 1.1; x === bridge.a ? ctx.moveTo(x, baseGround(x) + 2.2) : ctx.lineTo(x, y); }
+    ctx.lineTo(bridge.b, baseGround(bridge.b) + 2.2); ctx.stroke();
+    // deck + hangers
+    ctx.strokeStyle = "#4a4a4a"; ctx.lineWidth = 0.025;
+    for (let x = bridge.a + 0.5; x < bridge.b; x += 0.8) { ctx.beginPath(); ctx.moveTo(x, groundY(x)); ctx.lineTo(x, groundY(x) + 1.1); ctx.stroke(); }
+    ctx.strokeStyle = "#8d6e4f"; ctx.lineWidth = 0.14;
+    ctx.beginPath();
+    for (let x = bridge.a; x <= bridge.b; x += 0.25) { x === bridge.a ? ctx.moveTo(x, groundY(x) - 0.05) : ctx.lineTo(x, groundY(x) - 0.05); }
+    ctx.stroke();
+    // prayer flags on the cable
+    const cols = ["#2f6fd6", "#f5f5f5", "#d63a2f", "#2f9a4a", "#f2c22f"];
+    let i = 0;
+    for (let x = bridge.a + 0.3; x < bridge.b; x += 0.45, i++) {
+      const y = groundY(x) + 1.1;
+      ctx.fillStyle = cols[i % 5];
+      ctx.beginPath(); ctx.moveTo(x - 0.15, y); ctx.lineTo(x + 0.15, y); ctx.lineTo(x + Math.sin(t * 4 + i) * 0.05, y - 0.35); ctx.fill();
+    }
+  }
+  function drawWet() {
+    const [x0, x1] = viewRange();
+    for (const z of L.wet || []) {
+      const a = Math.max(x0, kmToX(z[0])), b = Math.min(x1, kmToX(z[1]));
+      if (a >= b) continue;
+      ctx.strokeStyle = "rgba(170,220,255,0.75)"; ctx.lineWidth = 0.1;
+      ctx.beginPath();
+      for (let x = a; x <= b; x += 0.1) { x === a ? ctx.moveTo(x, footY(x) + 0.02) : ctx.lineTo(x, footY(x) + 0.02); }
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (let x = Math.ceil(a); x < b; x += 1.3) {
+        const k = (Math.sin(t * 3 + x * 7) + 1) / 2;
+        if (k > 0.8) { ctx.beginPath(); ctx.arc(x, footY(x) + 0.06, 0.05, 0, Math.PI * 2); ctx.fill(); }
+      }
+    }
+  }
 
   // Donkey trains come down the trail. Hold POLES to brace against the wall or get bonked.
   function updateDonkeys(dt) {
@@ -512,12 +700,14 @@
     ctx.translate(hx, hy);
     ctx.rotate(-lean);
     // backpack
-    ctx.fillStyle = look.pack;
-    roundRect(-0.36, 0.0, 0.26, 0.66, 0.07); ctx.fill();
-    ctx.fillStyle = look.packTop;
-    roundRect(-0.38, 0.5, 0.3, 0.2, 0.06); ctx.fill();
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(-0.34, 0.18, 0.22, 0.04);
+    if (!opts.noPack) {
+      ctx.fillStyle = look.pack;
+      roundRect(-0.36, 0.0, 0.26, 0.66, 0.07); ctx.fill();
+      ctx.fillStyle = look.packTop;
+      roundRect(-0.38, 0.5, 0.3, 0.2, 0.06); ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.fillRect(-0.34, 0.18, 0.22, 0.04);
+    }
     // shirt
     ctx.fillStyle = look.shirt;
     roundRect(-0.14, -0.04, 0.28, 0.66, 0.08); ctx.fill();
@@ -695,7 +885,7 @@
       const h = hash(i);
       if (h > 0.45) continue;
       const tx = i * 2.2 + hash(i + 9) * 1.5;
-      if (inVillage(tx)) continue;
+      if (inVillage(tx) || (L.bridge && tx > bridge.a - 2 && tx < bridge.b + 2)) continue;
       drawTree(tx, groundY(tx) - 0.2, 1.6 + hash(i + 3) * 2.2, h);
     }
   }
@@ -791,7 +981,7 @@
     // soil
     ctx.fillStyle = "#7a5a3c";
     ctx.beginPath(); ctx.moveTo(x0, bottom);
-    for (let x = x0; x <= x1; x += 0.1) ctx.lineTo(x, footY(x));
+    for (let x = x0; x <= x1; x += 0.1) ctx.lineTo(x, inBridge(x) ? gorgeY(x) : footY(x));
     ctx.lineTo(x1, bottom); ctx.closePath(); ctx.fill();
     ctx.fillStyle = "rgba(0,0,0,0.1)";
     for (let i = Math.floor(x0); i < x1; i++) {
@@ -810,7 +1000,7 @@
     ctx.beginPath();
     let pen = false;
     for (let x = x0; x <= x1; x += 0.1) {
-      if (onStairs(x)) { pen = false; continue; }
+      if (onStairs(x) || inBridge(x)) { pen = false; continue; }
       const y = groundY(x);
       if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
     }
@@ -819,7 +1009,7 @@
     ctx.strokeStyle = "rgba(200,170,120,0.5)"; ctx.lineWidth = 0.05;
     ctx.beginPath(); pen = false;
     for (let x = x0; x <= x1; x += 0.1) {
-      if (onStairs(x)) { pen = false; continue; }
+      if (onStairs(x) || inBridge(x)) { pen = false; continue; }
       const y = groundY(x) - 0.08;
       if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
     }
@@ -988,7 +1178,12 @@
     ctx.fillText(L.title, pad + 10, top + 8);
     ctx.font = `${sm ? 12 : 13}px "Trebuchet MS", sans-serif`;
     ctx.fillText(`${km.toFixed(2)} / ${L.lengthKm} km   ${fmtTime(playTime)}`, pad + 10, top + (sm ? 28 : 31));
-    ctx.fillText(`Steps ${stats.steps}   Falls ${stats.falls}`, pad + 10, top + (sm ? 45 : 50));
+    const gap = playTime - ghostTimeAt(P.x);
+    ctx.fillText(`Falls ${stats.falls}   Ghost `, pad + 10, top + (sm ? 45 : 50));
+    const lw = ctx.measureText(`Falls ${stats.falls}   Ghost `).width;
+    ctx.fillStyle = gap > 0 ? "#ffb08a" : "#9fef9f";
+    ctx.fillText((gap > 0 ? "+" : "-") + fmtTime(Math.abs(gap)), pad + 10 + lw, top + (sm ? 45 : 50));
+    ctx.fillStyle = "#fff";
     // progress bar
     const by = top + (sm ? 66 : 74), bw = pw - 20;
     ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.fillRect(pad + 10, by, bw, 6);
@@ -1094,7 +1289,7 @@
       [isTouch ? "Hold ◀ BACK / FWD ▶ to lean" : "Hold W / S or ↑ / ↓: lean forward / back", 18],
       [isTouch ? "Hold POLES to steady yourself and brace" : "Hold SPACE: trekking poles (steadier, slower)", 18],
       ["Keep the balance needle in the green. Lean into the hill!", 16, "#cfe6ff"],
-      ["Donkey trains: brace with poles or get bonked.", 16, "#cfe6ff"]
+      ["Brace with poles for donkeys, porters and wet rock. Race Ghost Ryan!", 16, "#cfe6ff"]
     ], isTouch ? "Tap to start" : "Press any key to start");
   }
 
@@ -1105,13 +1300,13 @@
       ["Checked in to the teahouse!", 40, "#ffd34d"],
       [L.title, 22],
       [" ", 8],
-      [`Your time: ${fmtTime(stats.time)}   ·   Ryan's moving time: ${r.moving}`, 18],
+      [`Your time: ${fmtTime(stats.time)}   ·   Ghost Ryan: ${fmtTime(ghost.total)}`, 18],
+      [stats.time < ghost.total ? "You beat Ghost Ryan!" : `Ghost Ryan got there ${fmtTime(stats.time - ghost.total)} earlier. (Real Ryan: ${r.moving} moving.)`, 15, stats.time < ghost.total ? "#9fef9f" : "#cfe6ff"],
       [`Your steps: ${stats.steps}   ·   Ryan's steps: ${r.steps.toLocaleString()}`, 18],
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
       [`Falls: ${stats.falls}   ·   Donkey bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
-      [" ", 8],
-      ["Day 2 coming soon...", 18, "#aaa"]
+      ["Day 2 coming soon...", 16, "#aaa"]
     ], isTouch ? "Tap to hike it again" : "Press any key to hike it again");
   }
 
@@ -1134,7 +1329,11 @@
     worldTransform(sway);
     drawWorldBack();
     drawTerrain();
+    drawBridge();
+    drawWet();
+    drawGhost();
     drawFriends();
+    drawPorters();
     drawFront();
     drawDonkeys();
     drawPlayer();
