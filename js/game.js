@@ -151,7 +151,7 @@
       }
       return;
     }
-    if (state === "play" && leg >= 0) step(leg);
+    if (state === "play" && leg >= 0) beginSwing(leg);
   }
 
   function selectLevel(i) {
@@ -179,6 +179,8 @@
     else if (state !== "play") startOrStep(-1);
   });
   window.addEventListener("keyup", (e) => {
+    if (e.code === "KeyA" || e.code === "ArrowLeft" || e.code === "KeyQ") endSwing(0);
+    if (e.code === "KeyD" || e.code === "ArrowRight" || e.code === "KeyP") endSwing(1);
     if (e.code === "Space") input.poles = false;
     if (e.code === "KeyW" || e.code === "ArrowUp") input.fwd = false;
     if (e.code === "KeyS" || e.code === "ArrowDown") input.back = false;
@@ -203,6 +205,7 @@
       } else startOrStep(act === "L" ? 0 : 1);
     };
     const up = (e) => { e.preventDefault(); b.classList.remove("down");
+      if (act === "L") endSwing(0); if (act === "R") endSwing(1);
       if (act === "P") input.poles = false; if (act === "F") input.fwd = false; if (act === "B") input.back = false; };
     b.addEventListener("pointerdown", down);
     b.addEventListener("pointerup", up);
@@ -216,7 +219,25 @@
   // ---------- Mechanics ----------
   function altFactor() { return Math.max(0, Math.min(1, (elevAt(xToKm(P.x)) - 1400) / 3200)); }
 
-  function step(leg) {
+  // The longest comfortable stride here. Shorter uphill, a touch longer downhill.
+  function maxGoodReach() {
+    const g = grade(P.x);
+    return BASE_STRIDE * 1.25 * (g > 0 ? Math.max(0.55, 1 - g * 0.6) : 1 + Math.min(0.3, -g * 0.4));
+  }
+  const SWING_RATE = 2.4; // metres of reach per second of holding
+  function beginSwing(leg) {
+    if (P.fall) return;
+    if (P.swing) endSwing(P.swing.leg); // plant the other foot first
+    P.swing = { leg, t: 0, reach: 0 };
+  }
+  function endSwing(leg) {
+    if (!P.swing || P.swing.leg !== leg) return;
+    const reach = P.swing.reach;
+    P.swing = null;
+    if (state === "play") step(leg, reach);
+  }
+
+  function step(leg, reach) {
     if (P.fall) return;
     const g = grade(P.x);
     const since = t - P.lastStepT;
@@ -234,12 +255,20 @@
       const quality = Math.max(0.25, 1 - Math.abs(P.lean - idealLean) * 1.3);
       const staminaF = P.stamina <= 0 ? 0.3 : 0.55 + 0.45 * Math.min(1, P.stamina / 60);
       const slopeF = g > 0 ? Math.max(0.35, 1 - g * 0.7) : 1 + Math.min(0.5, -g * 0.5);
-      stride = BASE_STRIDE * quality * staminaF * slopeF * (1 - altFactor() * 0.3) * (input.poles ? 0.75 : 1);
-      if (since < 0.13) { // mashing
-        stride *= 0.5;
-        P.leanVel += 0.9;
-        popup("too fast!", "#ffb08a");
+      const good = maxGoodReach();
+      const r = Math.max(0.08, reach);
+      stride = Math.min(r, good) * quality * staminaF * (g > 0 ? Math.max(0.6, 1 - g * 0.3) : 1) * (1 - altFactor() * 0.3) * (input.poles ? 0.8 : 1);
+      if (r > good) {
+        // overstretched: weight gets stuck on the back foot and you rock backwards
+        P.leanVel -= (r - good) * 3.2 + 0.4;
+        popup(r > good + 0.5 ? "WAY too far!" : "overstretched!", "#ffb08a");
+      } else if (r > good * 0.7) {
+        stride *= 1.3; // a lovely full stride
+        if (Math.random() < 0.12) popup(["nice stride!", "smooth", "lovely"][Math.random() * 3 | 0], "#9fef9f");
+      } else if (r < 0.3) {
+        if (Math.random() < 0.15) popup(["baby steps", "tippy toes", "tiny step"][Math.random() * 3 | 0], "#ffe28a");
       }
+      void slopeF; void since;
       P.leanVel += 0.55 * (stride / BASE_STRIDE) + Math.max(0, -g) * 0.7;
       if (onWet(P.x) && !input.poles && Math.random() < 0.4) {
         // foot skates on wet stone
@@ -251,7 +280,7 @@
       if (inBridge(P.x)) bridge.amp = Math.min(0.55, bridge.amp + (input.poles ? 0.03 : 0.08));
       Sound.step();
     }
-    P.stamina = Math.max(0, P.stamina - (0.22 + Math.max(0, g) * 1.7));
+    P.stamina = Math.max(0, P.stamina - (0.3 + Math.max(0, g) * 1.7));
     P.targetX = Math.max(P.targetX, P.x) + stride;
     foot.fromX = foot.x;
     foot.toX = Math.max(foot.x, P.targetX + stride * 0.3);
@@ -268,6 +297,7 @@
     const dist = 1.5 + Math.random() * 2.5 + Math.abs(g) * 4;
     P.fall = { t: 0, dir, slide, dist, startX: P.x, rot: 0 };
     stats.falls++;
+    P.swing = null;
     shake = 0.5;
     P.stamina = Math.max(0, P.stamina - 6);
     Sound.fall();
@@ -352,6 +382,24 @@
     const auto = input.poles ? 11 : 3.9;
     const damp = input.poles ? 4.5 : 1.6;
     const leanInput = (input.fwd ? 1 : 0) - (input.back ? 1 : 0);
+    let swingTorque = 0;
+    if (P.swing) {
+      const sw = P.swing, good = maxGoodReach();
+      sw.t += dt;
+      sw.reach = Math.min(4, sw.t * SWING_RATE * (P.stamina <= 0 ? 0.6 : 1));
+      const f = P.feet[sw.leg];
+      const fx = P.x - 0.25 + sw.reach * 0.7;
+      f.x = f.fromX = f.toX = fx; f.t = 1;
+      f.y = footY(fx) + (onStairs(fx) ? 0.3 : 0.2);
+      // a long reach pulls the body back over the rear foot
+      swingTorque = -sw.reach * 0.12 - Math.max(0, sw.reach - good) * 2.5;
+      if (sw.reach > good + 1.0) {
+        P.swing = null;
+        popup("THE SPLITS!", "#ffb08a", true);
+        startFall(-1);
+        return;
+      }
+    }
     // bridge bounce and sway
     bridge.amp = Math.max(0, bridge.amp - dt * 0.12);
     const onB = inBridge(P.x);
@@ -359,7 +407,7 @@
     bridge.on = onB;
     const bridgeSway = onB ? Math.sin(t * 2.8) * (0.6 + bridge.amp * 4) : 0;
     const wetWobble = onWet(P.x) ? Math.sin(t * 7.3) * 0.5 : 0;
-    let acc = bridgeSway + wetWobble + 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
+    let acc = swingTorque + bridgeSway + wetWobble + 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
     if (leanInput) acc -= P.leanVel * 1.2; // a bit of extra control while actively leaning
     if (shake > 0) shake -= dt;
     P.leanVel += acc * dt;
@@ -368,6 +416,7 @@
     // Movement
     P.x += (P.targetX - P.x) * Math.min(1, dt * 7);
     for (const f of P.feet) {
+      if (P.swing && f === P.feet[P.swing.leg]) continue;
       if (f.t < 1) {
         f.t = Math.min(1, f.t + dt / 0.2);
         const k = f.t;
@@ -1296,6 +1345,19 @@
       ctx.fillText(P.lean > 0 ? (isTouch ? "◀ LEAN BACK!" : "S: LEAN BACK!") : (isTouch ? "LEAN FWD! ▶" : "W: LEAN FORWARD!"), gx, gy + 28);
     }
 
+    // Stride meter while a leg is swinging
+    if (P.swing && state === "play") {
+      const [sx, sy] = toScreen(P.x, groundY(P.x) + 2.6);
+      const good = maxGoodReach(), max = good + 1.0;
+      const bw = 90, bh = 9, x0 = sx - bw / 2;
+      ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(x0 - 2, sy - 2, bw + 4, bh + 4);
+      ctx.fillStyle = "rgba(120,220,120,0.35)"; ctx.fillRect(x0 + bw * (good * 0.7 / max), sy, bw * (good * 0.3 / max), bh);
+      ctx.fillStyle = "rgba(255,80,60,0.35)"; ctx.fillRect(x0 + bw * (good / max), sy, bw * (1 - good / max), bh);
+      const k = Math.min(1, P.swing.reach / max);
+      ctx.fillStyle = P.swing.reach > good ? "#ff5040" : P.swing.reach > good * 0.7 ? "#7fe07f" : "#fff";
+      ctx.fillRect(x0, sy + 2, bw * k, bh - 4);
+    }
+
     // Popups
     let pyBig = H * 0.3, pySmall = H * 0.42;
     for (const p of popups) {
@@ -1315,7 +1377,7 @@
       ctx.globalAlpha = Math.min(1, (12 - playTime) / 2);
       ctx.font = "15px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      const msg = "A / D: alternate legs  ·  W / S: lean forward / back  ·  SPACE: poles";
+      const msg = "Hold A / D to swing a leg, release to plant  ·  W / S: lean  ·  SPACE: poles";
       ctx.strokeText(msg, W / 2, H - 30); ctx.fillText(msg, W / 2, H - 30);
       ctx.globalAlpha = 1;
     }
@@ -1355,7 +1417,8 @@
       [L.subtitle + " · " + L.lengthKm + " km · +" + L.ryan.gain + " m", 18, "#cfe6ff"],
       [window.LEVELS.length > 1 ? (isTouch ? "Tap the sides to pick a day" : "← / → or 1-" + window.LEVELS.length + " to pick a day") : " ", 14, "#aaa"],
       [" ", 10],
-      [isTouch ? "Tap LEFT and RIGHT in turn to walk" : "A / D or ← / →: alternate legs", 18],
+      [isTouch ? "Hold LEFT or RIGHT to swing that leg, let go to plant it" : "Hold A / D (or ← / →) to swing a leg, release to plant it", 18],
+      ["Longer hold = longer stride. Hold too long and you do the splits.", 16, "#cfe6ff"],
       [isTouch ? "Hold ◀ BACK / FWD ▶ to lean" : "Hold W / S or ↑ / ↓: lean forward / back", 18],
       [isTouch ? "Hold POLES to steady yourself and brace" : "Hold SPACE: trekking poles (steadier, slower)", 18],
       ["Keep the balance needle in the green. Lean into the hill!", 16, "#cfe6ff"],
