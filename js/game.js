@@ -261,7 +261,15 @@
       const slopeF = g > 0 ? Math.max(0.35, 1 - g * 0.7) : 1 + Math.min(0.5, -g * 0.5);
       const good = maxGoodReach();
       const r = Math.max(0.08, reach);
-      stride = Math.min(r, good) * quality * staminaF * (g > 0 ? Math.max(0.6, 1 - g * 0.3) : 1) * (1 - altFactor() * 0.3) * (input.poles ? 0.8 : 1);
+      // The stride is mostly what you swung. Lean, tiredness, slope, altitude and poles only trim it.
+      const trim = (0.75 + 0.25 * quality)
+        * (P.stamina <= 0 ? 0.6 : 0.85 + 0.15 * Math.min(1, P.stamina / 40))
+        * (g > 0 ? Math.max(0.85, 1 - g * 0.2) : 1)
+        * (1 - altFactor() * 0.12)
+        * (input.poles ? 0.9 : 1);
+      stride = Math.min(r, good) * trim;
+      if (quality < 0.5 && Math.random() < 0.3) popup(P.lean < idealLean ? "lean into the hill!" : "leaning too far forward", "#ffe28a");
+      void staminaF;
       if (r > good) {
         // overstretched: weight gets stuck on the back foot and you rock backwards
         P.leanVel -= (r - good) * 3.2 + 0.4;
@@ -273,11 +281,11 @@
         if (Math.random() < 0.15) popup(["baby steps", "tippy toes", "tiny step"][Math.random() * 3 | 0], "#ffe28a");
       }
       void slopeF; void since;
-      P.leanVel += 0.55 * (stride / BASE_STRIDE) + Math.max(0, -g) * 0.7;
+      P.leanVel += 0.38 * (stride / BASE_STRIDE) + Math.max(0, -g) * 0.7;
       if (onWet(P.x) && !input.poles && Math.random() < 0.4) {
         // foot skates on wet stone
         P.leanVel += (Math.random() < 0.5 ? -1 : 1) * (1.0 + Math.random() * 0.8);
-        stride *= 0.4;
+        stride *= 0.6;
         popup(["slippery!", "whoa whoa whoa", "wet rock!"][Math.random() * 3 | 0], "#9fd8ff");
         Sound.shuffle();
       }
