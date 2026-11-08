@@ -20,6 +20,7 @@ Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower le
 ## Days
 - Day 1: Up up up (ACA checkpoint to the teahouse, 3.62 km)
 - Day 2: Ulleri to Ghorepani (7.89 km, +848 m)
+- Day 3: Over Thapla Danda (11.64 km, up to 3,199 m then a long descent)
 
 Pick a day on the title screen with ← / → (or tap the sides on a phone).
 

@@ -96,5 +96,59 @@ window.LEVELS = [
       { km: 6.8, say: "Poon Hill at 5am tomorrow!" }
     ],
     ryan: { steps: 13444, moving: "2:25:56", movingSec: 8756, gain: 848 }
+  },
+  {
+    id: 3,
+    title: "Day 3: Over Thapla Danda",
+    subtitle: "Up into the fog at 3,199 m, then a long wet descent",
+    date: "31 Oct 2026",
+    lengthKm: 11.64,
+    profile: [
+      [0.0, 2885], [0.4, 2875], [0.8, 2905], [1.2, 2995], [1.6, 3065],
+      [2.0, 3150], [2.3, 3180], [2.5, 3199], [2.8, 3190], [3.2, 3182],
+      [3.5, 3160], [4.0, 3075], [4.5, 3010], [5.0, 2935], [5.5, 2855],
+      [6.0, 2765], [6.5, 2715], [7.0, 2665], [7.4, 2685], [7.7, 2690],
+      [7.95, 2650], [8.2, 2560], [8.4, 2532], [8.6, 2565], [8.9, 2630],
+      [9.3, 2700], [9.6, 2670], [10.0, 2630], [10.5, 2530], [11.0, 2450],
+      [11.4, 2375], [11.64, 2330]
+    ],
+    // "Wet and so steps up and down"
+    stairs: [[0.8, 1.6], [2.0, 2.4], [3.6, 4.6], [5.2, 6.1], [8.0, 8.35], [8.6, 9.2], [10.1, 11.2]],
+    snacks: [
+      { km: 1.0, type: "tea" },
+      { km: 2.55, type: "snickers" },
+      { km: 4.8, type: "tea" },
+      { km: 6.6, type: "dalbhat" },
+      { km: 8.9, type: "snickers" },
+      { km: 10.4, type: "tea" }
+    ],
+    weather: [
+      { from: 0.0, to: 11.64, type: "drizzle" },
+      { from: 1.7, to: 3.8, type: "fog" },
+      { from: 2.2, to: 3.3, type: "wind" },
+      { from: 9.2, to: 9.8, type: "fog" }
+    ],
+    wet: [[0.9, 1.4], [3.7, 4.3], [5.3, 5.9], [8.1, 8.5], [10.2, 10.8]],
+    bridge: [8.38, 8.46],
+    bridgeStyle: "plank",
+    donkeys: [1.3, 5.6, 9.9],
+    porters: [0.5, 3.4, 7.2, 10.8],
+    scenery: [
+      { km: 0.05, type: "village" },
+      { km: 1.4, type: "flags" },
+      { km: 2.5, type: "sign", text: ["WELCOME TO", "THAPLA DANDA", "GHOREPANI, MYAGDI"], sub: "3165m" },
+      { km: 2.6, type: "flags" },
+      { km: 6.7, type: "village" },
+      { km: 7.6, type: "flags" },
+      { km: 9.3, type: "flags" },
+      { km: 11.64, type: "teahouse" }
+    ],
+    friends: [
+      { km: 0.6, say: "Is this rain ever stopping?" },
+      { km: 3.0, say: "Can't see a thing!" },
+      { km: 6.0, say: "Downhill! My knees..." },
+      { km: 8.3, say: "Mind the planks!" }
+    ],
+    ryan: { steps: 21590, moving: "3:57:41", movingSec: 14261, gain: 615 }
   }
 ];

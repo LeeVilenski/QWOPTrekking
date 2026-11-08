@@ -63,13 +63,14 @@
   function bridgeY(x) {
     const u = (x - bridge.a) / (bridge.b - bridge.a);
     const ya = baseGround(bridge.a), yb = baseGround(bridge.b);
-    return ya + (yb - ya) * u - Math.sin(Math.PI * u) * 1.1 + Math.sin(Math.PI * u) * Math.sin(t * 5.5) * bridge.amp;
+    const sag = L.bridgeStyle === "plank" ? 0.15 : 1.1;
+    return ya + (yb - ya) * u - Math.sin(Math.PI * u) * sag + Math.sin(Math.PI * u) * Math.sin(t * 5.5) * bridge.amp;
   }
   function groundY(x) { return inBridge(x) ? bridgeY(x) : baseGround(x); }
   function gorgeY(x) {
     if (!inBridge(x)) return baseGround(x);
     const u = (x - bridge.a) / (bridge.b - bridge.a);
-    return Math.min(baseGround(x), groundY(x)) - Math.pow(Math.sin(Math.PI * u), 0.3) * 30;
+    return Math.min(baseGround(x), groundY(x)) - Math.pow(Math.sin(Math.PI * u), 0.3) * (L.bridgeStyle === "plank" ? 1.6 : 30);
   }
   function onWet(x) { return inZone(L.wet || [], x); }
   function inZone(zones, x) {
@@ -122,7 +123,7 @@
     friends = L.friends.map((f, i) => ({ triggerX: kmToX(f.km), say: f.say, x: null, phase: 0, idx: i, done: false, sayT: 0 }));
     popups = [];
     gust = { t: 0, next: 3, force: 0 };
-    weatherIntensity = { drizzle: 0, wind: 0 };
+    weatherIntensity = { drizzle: 0, wind: 0, fog: 0 };
     rainDrops = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.6 }));
     stats = { steps: 0, falls: 0, snacks: 0, bonks: 0 };
     donkeyTrains = (L.donkeys || []).map((km) => ({ x: kmToX(km), started: false }));
@@ -166,6 +167,7 @@
     const types = new Set(L.weather.map((w) => w.type));
     if (types.has("drizzle")) bits.push("🌧️ drizzle");
     if (types.has("wind")) bits.push("💨 wind gusts");
+    if (types.has("fog")) bits.push("🌫️ thick fog");
     if ((L.wet || []).length) bits.push("🪨 wet rock");
     if (L.bridge) bits.push("🌉 wobbly bridge");
     const maxG = L.profile.reduce((a, p, i) => i ? Math.max(a, (p[1] - L.profile[i - 1][1]) / ((p[0] - L.profile[i - 1][0]) * 1000)) : a, 0);
@@ -465,9 +467,11 @@
     popups = popups.filter((p) => p.t < (p.big ? 3 : 1.2));
 
     // Weather blending
-    const w = weatherAt(P.x);
-    weatherIntensity.drizzle += ((w === "drizzle" ? 1 : 0) - weatherIntensity.drizzle) * Math.min(1, dt * 0.8);
-    weatherIntensity.wind += ((w === "wind" ? 1 : 0) - weatherIntensity.wind) * Math.min(1, dt * 0.8);
+    const km = xToKm(P.x);
+    for (const type of ["drizzle", "wind", "fog"]) {
+      const on = L.weather.some((z) => z.type === type && km >= z.from && km <= z.to) ? 1 : 0;
+      weatherIntensity[type] += (on - weatherIntensity[type]) * Math.min(1, dt * 0.8);
+    }
 
     if (state === "title") { idleFriends(dt); return; }
     if (state === "finished") return;
@@ -519,9 +523,9 @@
     // bridge bounce and sway
     bridge.amp = Math.max(0, bridge.amp - dt * 0.12);
     const onB = inBridge(P.x);
-    if (onB && !bridge.on) { popup("Suspension bridge! Don't look down.", "#fff", true); bridge.amp = 0.15; }
+    if (onB && !bridge.on) { popup(L.bridgeStyle === "plank" ? "Dodgy plank bridge. Wet planks!" : "Suspension bridge! Don't look down.", "#fff", true); bridge.amp = 0.15; }
     bridge.on = onB;
-    const bridgeSway = onB ? Math.sin(t * 2.8) * (0.6 + bridge.amp * 4) : 0;
+    const bridgeSway = onB ? Math.sin(t * (L.bridgeStyle === "plank" ? 6.3 : 2.8)) * (0.6 + bridge.amp * 4) * (L.bridgeStyle === "plank" ? 0.8 : 1) : 0;
     const wetWobble = onWet(P.x) ? Math.sin(t * 7.3) * (has("spikes") ? 0.2 : 0.5) : 0;
     let acc = swingTorque + bridgeSway + wetWobble + 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
     if (leanInput) acc -= P.leanVel * 1.2; // a bit of extra control while actively leaning
@@ -701,6 +705,26 @@
     if (!L.bridge) return;
     const [x0, x1] = viewRange();
     if (bridge.b < x0 || bridge.a > x1) return;
+    if (L.bridgeStyle === "plank") {
+      // a stream over wet rocks with a few loose planks laid across
+      const mid = (bridge.a + bridge.b) / 2;
+      ctx.fillStyle = "#5f8fa0";
+      ctx.beginPath(); ctx.moveTo(bridge.a, baseGround(bridge.a));
+      for (let x = bridge.a; x <= bridge.b; x += 0.2) ctx.lineTo(x, gorgeY(x) + 0.6);
+      ctx.lineTo(bridge.b, baseGround(bridge.b)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 0.05;
+      for (let i = 0; i < 5; i++) { const rx = bridge.a + 0.5 + ((i * 1.1 + t * 1.5) % (bridge.b - bridge.a - 1)); ctx.beginPath(); ctx.moveTo(rx, gorgeY(mid) + 0.9); ctx.lineTo(rx + 0.4, gorgeY(mid) + 0.9); ctx.stroke(); }
+      ctx.fillStyle = "#6e6e66";
+      for (let i = 0; i < 8; i++) { const rx = bridge.a + hash(i + 40) * (bridge.b - bridge.a); ctx.beginPath(); ctx.ellipse(rx, gorgeY(rx) + 0.8, 0.35, 0.2, 0, 0, Math.PI * 2); ctx.fill(); }
+      let i = 0;
+      for (let x = bridge.a - 0.3; x < bridge.b + 0.3; x += 0.9, i++) {
+        ctx.save(); ctx.translate(x + 0.45, groundY(Math.min(bridge.b, Math.max(bridge.a, x + 0.45))) - 0.06);
+        ctx.rotate((hash(i + 7) - 0.5) * 0.12);
+        ctx.fillStyle = i % 2 ? "#b88a55" : "#a77b48"; ctx.fillRect(-0.47, -0.08, 0.94, 0.12);
+        ctx.restore();
+      }
+      return;
+    }
     // shadowy gorge beneath the deck
     const bottom = camY - H / S - 2;
     const grd = ctx.createLinearGradient(0, baseGround(bridge.a), 0, bottom);
@@ -1178,6 +1202,15 @@
     ctx.fillStyle = "#f5e9a8"; ctx.fillRect(x - 1.2, y + 1.3, 3.2, 0.7);
     wText("TEAHOUSE", x + 0.4, y + 1.65, 0.38, "#7a2d2d", "center", true);
   }
+  // Round navy sign like "WELCOME TO THAPLA DANDA"
+  function drawRoundSign(x, lines, sub) {
+    const y = footY(x);
+    ctx.fillStyle = "#222"; ctx.fillRect(x - 0.05, y, 0.1, 2.3);
+    ctx.fillStyle = "#1c2f4a"; ctx.beginPath(); ctx.arc(x, y + 2.7, 0.75, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#3b6aa8"; ctx.lineWidth = 0.06; ctx.stroke();
+    lines.forEach((ln, i) => wText(ln, x, y + 3.0 - i * 0.28, i === 1 ? 0.24 : 0.17, "#f4d27a", "center", true));
+    if (sub) wText(sub, x, y + 2.3, 0.13, "#ddd", "center", false);
+  }
   function drawFinishFlag() {
     if (L.scenery.some((sc) => sc.type === "gate")) return; // the gate is the finish line
     const x = END_X - 3.5;
@@ -1271,6 +1304,7 @@
       if (sx < x0 - 8 || sx > x1 + 8) continue;
       if (s.type === "checkpoint") drawCheckpoint(sx + 4);
       if (s.type === "gate") drawGate(sx);
+      if (s.type === "sign") drawRoundSign(sx, s.text || [], s.sub || "");
       if (s.type === "flags") drawFlags(sx - 6, sx + 6, 4.5);
     }
     // snacks
@@ -1367,6 +1401,15 @@
 
   function drawWeather() {
     screenTransform();
+    const fg = weatherIntensity.fog;
+    if (fg > 0.02) {
+      // thick fog: you can only really see a few metres around Ryan
+      const [px, py] = toScreen(P.x, groundY(P.x) + 1);
+      const r0 = S * 2.5, r1 = S * 7;
+      const grd = ctx.createRadialGradient(px, py, r0, px, py, r1);
+      grd.addColorStop(0, `rgba(225,230,233,${0.15 * fg})`); grd.addColorStop(1, `rgba(225,230,233,${0.93 * fg})`);
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+    }
     const d = weatherIntensity.drizzle;
     if (d > 0.02) {
       ctx.strokeStyle = `rgba(220,230,240,${0.5 * d})`; ctx.lineWidth = 1.2;
