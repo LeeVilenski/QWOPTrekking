@@ -5,8 +5,8 @@ A wobbly, tongue-in-cheek browser walking sim based on Ryan's Annapurna Base Cam
 Play: open `index.html` in a browser (works on desktop and phones). No build step.
 
 ## Controls
-- **Desktop:** `A`/`D` or `←`/`→` alternate legs, hold `Space` for trekking poles, `M` mutes.
-- **Phone:** LEFT / POLES / RIGHT buttons (landscape works best).
+- **Desktop:** `A`/`D` or `←`/`→` alternate legs, hold `W`/`S` or `↑`/`↓` to lean forward/back, hold `Space` for trekking poles, `M` mutes.
+- **Phone:** BACK / LEFT / POLES / RIGHT / FWD buttons (landscape works best).
 
 ## Files
 - `js/levels.js`: level data (elevation profile traced from Strava, snacks, weather, scenery).

@@ -37,6 +37,7 @@ window.LEVELS = [
       { km: 3.0, type: "flags" },
       { km: 3.62, type: "teahouse" }
     ],
+    donkeys: [0.75, 1.7, 2.75],
     friends: [
       { km: 0.85, say: "Morning Ryan!" },
       { km: 2.4, say: "Up up up!" }

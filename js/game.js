@@ -81,8 +81,8 @@
   let t = 0, playTime = 0;
   let P; // player
   let snacks, friends, popups, gust, weatherIntensity, rainDrops;
-  let stats;
-  const input = { poles: false };
+  let stats, donkeyTrains, donkeys, dust, shake = 0, nextMutter = 6, mutter = null;
+  const input = { poles: false, fwd: false, back: false };
 
   function newGame() {
     L = window.LEVELS[0];
@@ -101,7 +101,9 @@
     gust = { t: 0, next: 3, force: 0 };
     weatherIntensity = { drizzle: 0, wind: 0 };
     rainDrops = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.6 }));
-    stats = { steps: 0, falls: 0, snacks: 0 };
+    stats = { steps: 0, falls: 0, snacks: 0, bonks: 0 };
+    donkeyTrains = (L.donkeys || []).map((km) => ({ x: kmToX(km), started: false }));
+    donkeys = []; dust = []; shake = 0; nextMutter = 6; mutter = null;
     playTime = 0;
   }
   function mkFoot(x) { return { x, y: 0, fromX: x, toX: x, t: 1 }; }
@@ -121,16 +123,20 @@
   }
 
   window.addEventListener("keydown", (e) => {
-    if (e.repeat) { if (["Space", "ArrowDown", "KeyS"].includes(e.code)) e.preventDefault(); return; }
+    if (e.repeat) { if (["Space", "ArrowDown", "ArrowUp", "KeyS", "KeyW"].includes(e.code)) e.preventDefault(); return; }
     const k = e.code;
     if (k === "KeyA" || k === "ArrowLeft" || k === "KeyQ") { startOrStep(0); e.preventDefault(); }
     else if (k === "KeyD" || k === "ArrowRight" || k === "KeyP") { startOrStep(1); e.preventDefault(); }
-    else if (k === "Space" || k === "ArrowDown" || k === "KeyS") { input.poles = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
+    else if (k === "Space") { input.poles = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
+    else if (k === "KeyW" || k === "ArrowUp") { input.fwd = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
+    else if (k === "KeyS" || k === "ArrowDown") { input.back = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
     else if (k === "KeyM") toggleMute();
     else if (state !== "play") startOrStep(-1);
   });
   window.addEventListener("keyup", (e) => {
-    if (e.code === "Space" || e.code === "ArrowDown" || e.code === "KeyS") input.poles = false;
+    if (e.code === "Space") input.poles = false;
+    if (e.code === "KeyW" || e.code === "ArrowUp") input.fwd = false;
+    if (e.code === "KeyS" || e.code === "ArrowDown") input.back = false;
   });
 
   canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); if (state !== "play") startOrStep(-1); });
@@ -139,10 +145,13 @@
     const act = b.dataset.act;
     const down = (e) => {
       e.preventDefault(); b.classList.add("down");
-      if (act === "P") { input.poles = true; if (state !== "play") startOrStep(-1); }
-      else startOrStep(act === "L" ? 0 : 1);
+      if (act === "P" || act === "F" || act === "B") {
+        input[act === "P" ? "poles" : act === "F" ? "fwd" : "back"] = true;
+        if (state !== "play") startOrStep(-1);
+      } else startOrStep(act === "L" ? 0 : 1);
     };
-    const up = (e) => { e.preventDefault(); b.classList.remove("down"); if (act === "P") input.poles = false; };
+    const up = (e) => { e.preventDefault(); b.classList.remove("down");
+      if (act === "P") input.poles = false; if (act === "F") input.fwd = false; if (act === "B") input.back = false; };
     b.addEventListener("pointerdown", down);
     b.addEventListener("pointerup", up);
     b.addEventListener("pointercancel", up);
@@ -187,6 +196,7 @@
     foot.fromX = foot.x;
     foot.toX = Math.max(foot.x, P.targetX + stride * 0.3);
     foot.t = 0;
+    for (let i = 0; i < 4; i++) dust.push({ x: foot.toX + (Math.random() - 0.5) * 0.3, y: footY(foot.toX) + 0.05, vx: (Math.random() - 0.5) * 1.2, vy: Math.random() * 0.8, t: 0 });
     P.lastLeg = leg;
     P.lastStepT = t;
     stats.steps++;
@@ -198,6 +208,7 @@
     const dist = 2.5 + Math.random() * 4 + Math.abs(g) * 6;
     P.fall = { t: 0, dir, slide, dist, startX: P.x, rot: 0 };
     stats.falls++;
+    shake = 0.5;
     P.stamina = Math.max(0, P.stamina - 6);
     Sound.fall();
     const quips = [
@@ -258,7 +269,9 @@
 
     playTime += dt;
 
-    if (state === "fallen") { updateFall(dt); updateFriends(dt); return; }
+    for (const d of dust) { d.t += dt; d.x += d.vx * dt; d.y += d.vy * dt; }
+    dust = dust.filter((d) => d.t < 0.6);
+    if (state === "fallen") { updateFall(dt); updateFriends(dt); updateDonkeys(dt); return; }
 
     // Gusts
     gust.next -= dt;
@@ -274,11 +287,14 @@
     const g = grade(P.x);
     const alt = altFactor();
     const slopeTorque = g > 0 ? -g * 1.3 : -g * 1.7;
-    const wobbleAmp = 0.35 + alt * 1.5 + (P.stamina < 20 ? 0.9 : 0) + weatherIntensity.drizzle * 0.5;
+    const wobbleAmp = 0.5 + alt * 1.5 + (P.stamina < 20 ? 0.9 : 0) + weatherIntensity.drizzle * 0.5;
     const wobble = (Math.sin(t * 1.3) + Math.sin(t * 2.7 + 1) * 0.6 + Math.sin(t * 4.3 + 2) * 0.3) / 1.9 * wobbleAmp;
-    const auto = input.poles ? 11 : 4.6;
+    const auto = input.poles ? 11 : 3.5;
     const damp = input.poles ? 4.5 : 1.6;
-    const acc = 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force;
+    const leanInput = (input.fwd ? 1 : 0) - (input.back ? 1 : 0);
+    let acc = 3.0 * P.lean - auto * P.lean - damp * P.leanVel + slopeTorque + wobble + gust.force + leanInput * 5;
+    if (leanInput) acc -= P.leanVel * 1.2; // a bit of extra control while actively leaning
+    if (shake > 0) shake -= dt;
     P.leanVel += acc * dt;
     P.lean += P.leanVel * dt;
 
@@ -314,6 +330,8 @@
     }
 
     updateFriends(dt);
+    updateDonkeys(dt);
+    updateMutter(dt, g);
 
     if (Math.abs(P.lean) > FALL_ANGLE) startFall(Math.sign(P.lean));
 
@@ -347,12 +365,88 @@
   }
   function idleFriends() {}
 
+  // Donkey trains come down the trail. Hold POLES to brace against the wall or get bonked.
+  function updateDonkeys(dt) {
+    for (const tr of donkeyTrains) {
+      if (!tr.started && P.x > tr.x - 22) {
+        tr.started = true;
+        const n = 3 + (Math.random() * 2 | 0);
+        for (let i = 0; i < n; i++) donkeys.push({ x: P.x + 20 + i * 2.3, phase: Math.random() * 6, hit: false, load: i % 3 });
+        popup("DONKEY TRAIN! Hold POLES to brace!", "#ffd34d", true);
+        Sound.bells();
+      }
+    }
+    for (const d of donkeys) {
+      d.x -= dt * 2.4;
+      d.phase += dt * 9;
+      if (!d.hit && !P.fall && Math.abs(d.x - P.x) < 0.45) {
+        d.hit = true;
+        if (input.poles) { popup("braced!", "#bfffbf"); }
+        else { P.leanVel -= 2.2; P.targetX = Math.max(1, P.targetX - 0.4); stats.bonks++; shake = 0.25; popup("BONK!", "#ffb08a"); Sound.shuffle(); }
+      }
+    }
+    donkeys = donkeys.filter((d) => d.x > P.x - 25);
+  }
+
+  const MUTTERS = {
+    up: ["up up up", "whose idea was this", "more stairs?!", "my calves...", "one more step", "is that the teahouse? no."],
+    flat: ["lovely", "this is fine", "namaste!", "smells like dal bhat"],
+    down: ["knees, hold on", "wheee", "careful now"],
+    tired: ["*wheeze*", "need... Snickers", "sit down? just for a sec"]
+  };
+  function updateMutter(dt, g) {
+    nextMutter -= dt;
+    if (mutter && t - mutter.t > 2.2) mutter = null;
+    if (nextMutter <= 0) {
+      nextMutter = 7 + Math.random() * 7;
+      const set = P.stamina < 25 ? MUTTERS.tired : g > 0.12 ? MUTTERS.up : g < -0.08 ? MUTTERS.down : MUTTERS.flat;
+      mutter = { text: set[Math.random() * set.length | 0], t };
+    }
+  }
+
+  function drawDonkeys() {
+    for (const d of donkeys) {
+      const x = d.x, gy = groundY(x);
+      const bob = Math.abs(Math.sin(d.phase)) * 0.04;
+      const by = gy + 0.75 + bob;
+      // legs
+      ctx.strokeStyle = "#5a4636"; ctx.lineWidth = 0.08; ctx.lineCap = "round";
+      for (let i = 0; i < 4; i++) {
+        const lx = x + (i < 2 ? -0.35 : 0.3) + (i % 2) * 0.1;
+        const sw = Math.sin(d.phase + i * 1.6) * 0.12;
+        ctx.beginPath(); ctx.moveTo(lx, by - 0.1); ctx.lineTo(lx + sw, footY(lx + sw) + 0.02); ctx.stroke();
+      }
+      // body
+      ctx.fillStyle = "#8a7360";
+      ctx.beginPath(); ctx.ellipse(x, by, 0.55, 0.25, 0, 0, Math.PI * 2); ctx.fill();
+      // neck + head (facing left, walking downhill toward Ryan)
+      ctx.beginPath(); ctx.moveTo(x - 0.4, by + 0.05); ctx.lineTo(x - 0.65, by + 0.45); ctx.lineTo(x - 0.5, by + 0.5); ctx.lineTo(x - 0.25, by + 0.15); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x - 0.75, by + 0.45, 0.2, 0.1, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#6b5646";
+      ctx.beginPath(); ctx.ellipse(x - 0.55, by + 0.66, 0.04, 0.12, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x - 0.62, by + 0.66, 0.04, 0.12, -0.1, 0, Math.PI * 2); ctx.fill();
+      // load: colourful saddle bags
+      ctx.fillStyle = ["#c0392b", "#2f6fd6", "#e3a81f"][d.load];
+      ctx.fillRect(x - 0.3, by + 0.05, 0.6, 0.35);
+      ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillRect(x - 0.3, by + 0.2, 0.6, 0.05);
+      // bell
+      ctx.fillStyle = "#d4af37"; ctx.beginPath(); ctx.arc(x - 0.5, by - 0.02, 0.06, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function drawDust() {
+    for (const d of dust) {
+      ctx.fillStyle = `rgba(190,165,120,${0.5 * (1 - d.t / 0.6)})`;
+      ctx.beginPath(); ctx.arc(d.x, d.y, 0.06 + d.t * 0.2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
   // ---------- Drawing helpers ----------
   let camX = 0, camY = 0;
   function worldTransform(sway) {
     const tx = W / 2 - camX * S, ty = H * GF() + camY * S;
     ctx.setTransform(DPR * S, 0, 0, -DPR * S, DPR * tx, DPR * ty);
     if (sway) { ctx.translate(camX, camY); ctx.rotate(sway); ctx.translate(-camX, -camY); }
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 0.6, (Math.random() - 0.5) * shake * 0.6);
   }
   function screenTransform() { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
   function GF() { return isTouch ? 0.48 : 0.6; }
@@ -933,6 +1027,10 @@
     ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + Math.cos(ang) * (gr + 4), gy + Math.sin(ang) * (gr + 4)); ctx.stroke();
     ctx.font = "10px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
     ctx.fillText("BALANCE", gx, gy + 12);
+    if (danger > 0.55) {
+      ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#ffd34d";
+      ctx.fillText(P.lean > 0 ? (isTouch ? "◀ LEAN BACK!" : "S: LEAN BACK!") : (isTouch ? "LEAN FWD! ▶" : "W: LEAN FORWARD!"), gx, gy + 28);
+    }
 
     // Popups
     let pyBig = H * 0.3, pySmall = H * 0.42;
@@ -953,7 +1051,7 @@
       ctx.globalAlpha = Math.min(1, (12 - playTime) / 2);
       ctx.font = "15px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      const msg = "A / D (or ← →) alternate legs  ·  hold SPACE for trekking poles";
+      const msg = "A / D: alternate legs  ·  W / S: lean forward / back  ·  SPACE: poles";
       ctx.strokeText(msg, W / 2, H - 30); ctx.fillText(msg, W / 2, H - 30);
       ctx.globalAlpha = 1;
     }
@@ -963,10 +1061,13 @@
     screenTransform();
     ctx.fillStyle = "rgba(10,20,35,0.55)"; ctx.fillRect(0, 0, W, H);
     const sm = W < 600;
-    let y = H * 0.18;
+    let k = sm ? 0.68 : 1;
+    const total = lines.reduce((a, l) => a + l[1] * 1.45, 0) + 50;
+    k = Math.min(k, (H * 0.88) / total);
+    let y = Math.max(H * 0.06, (H - total * k) / 2) + 20 * k;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const [txt, size, color] of lines) {
-      const fs = sm ? size * 0.68 : size;
+      const fs = size * k;
       ctx.font = `bold ${fs}px "Trebuchet MS", sans-serif`;
       ctx.fillStyle = color || "#fff";
       ctx.fillText(txt, W / 2, y);
@@ -976,7 +1077,7 @@
       ctx.globalAlpha = 0.6 + Math.sin(t * 4) * 0.4;
       ctx.font = `bold ${sm ? 16 : 20}px "Trebuchet MS", sans-serif`;
       ctx.fillStyle = "#ffd34d";
-      ctx.fillText(sub, W / 2, Math.min(H - 40, y + 20));
+      ctx.fillText(sub, W / 2, Math.min(H - 20, y + 10));
       ctx.globalAlpha = 1;
     }
   }
@@ -990,9 +1091,10 @@
       [L.subtitle + " · 3.62 km · +684 m", 18, "#cfe6ff"],
       [" ", 10],
       [isTouch ? "Tap LEFT and RIGHT in turn to walk" : "A / D or ← / →: alternate legs", 18],
-      [isTouch ? "Hold POLES to steady yourself" : "Hold SPACE: trekking poles (steadier, slower)", 18],
-      ["Keep the balance needle in the green.", 18],
-      ["Uphill: keep stepping or you tip back. Downhill: poles!", 16, "#cfe6ff"]
+      [isTouch ? "Hold ◀ BACK / FWD ▶ to lean" : "Hold W / S or ↑ / ↓: lean forward / back", 18],
+      [isTouch ? "Hold POLES to steady yourself and brace" : "Hold SPACE: trekking poles (steadier, slower)", 18],
+      ["Keep the balance needle in the green. Lean into the hill!", 16, "#cfe6ff"],
+      ["Donkey trains: brace with poles or get bonked.", 16, "#cfe6ff"]
     ], isTouch ? "Tap to start" : "Press any key to start");
   }
 
@@ -1006,7 +1108,7 @@
       [`Your time: ${fmtTime(stats.time)}   ·   Ryan's moving time: ${r.moving}`, 18],
       [`Your steps: ${stats.steps}   ·   Ryan's steps: ${r.steps.toLocaleString()}`, 18],
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
-      [`Falls: ${stats.falls}   ·   Snacks eaten: ${stats.snacks}/${snacks.length}`, 18],
+      [`Falls: ${stats.falls}   ·   Donkey bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
       [" ", 8],
       ["Day 2 coming soon...", 18, "#aaa"]
@@ -1034,7 +1136,10 @@
     drawTerrain();
     drawFriends();
     drawFront();
+    drawDonkeys();
     drawPlayer();
+    drawDust();
+    if (mutter && state === "play") wText(mutter.text, P.x, groundY(P.x) + 2.25, 0.3, "#fff", "center", true);
     flushWorldTexts();
     drawWeather();
     if (state === "title") drawTitle();
