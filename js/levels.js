@@ -17,12 +17,10 @@ window.LEVELS = [
     // Stone staircase sections [fromKm, toKm]
     stairs: [[1.45, 1.8], [2.05, 2.55], [3.2, 3.62]],
     snacks: [
-      { km: 0.55, type: "tea" },
-      { km: 1.25, type: "snickers" },
-      { km: 1.95, type: "dalbhat" },
-      { km: 2.45, type: "snickers" },
-      { km: 2.85, type: "tea" },
-      { km: 3.3, type: "snickers" }
+      { km: 0.7, type: "tea" },
+      { km: 1.6, type: "snickers" },
+      { km: 2.3, type: "dalbhat" },
+      { km: 3.05, type: "tea" }
     ],
     weather: [
       { from: 1.55, to: 2.35, type: "drizzle" },
@@ -37,12 +35,12 @@ window.LEVELS = [
       { km: 3.0, type: "flags" },
       { km: 3.62, type: "teahouse" }
     ],
-    donkeys: [0.75, 1.7, 2.75],
+    donkeys: [0.95, 2.65],
     // Suspension bridge over the Modi Khola near the start [fromKm, toKm]
-    bridge: [0.12, 0.22],
+    bridge: [0.22, 0.4],
     // Wet, slippery stone by the waterfall and in the drizzle
     wet: [[1.12, 1.32], [1.85, 1.95]],
-    porters: [0.45, 1.4, 2.2, 3.05],
+    porters: [0.55, 1.75, 2.95],
     friends: [
       { km: 0.85, say: "Morning Ryan!" },
       { km: 2.4, say: "Up up up!" }

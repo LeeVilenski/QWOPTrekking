@@ -3,7 +3,9 @@
   "use strict";
 
   // ---------- Tuning ----------
-  const H_SCALE = 5;      // real metres per game metre (horizontal compression)
+  // Real metres per game metre. One scale for every day, so a ~15 km day takes ~15 minutes.
+  // Elevation uses the same compression, so slopes stay as steep as the real trail.
+  const H_SCALE = 20;
   const V_EXAG = 1.3;     // vertical exaggeration so the climbs look as hard as they felt
   const BASE_STRIDE = 1.25;
   const FALL_ANGLE = 1.1; // radians of lean before Ryan topples
@@ -417,10 +419,10 @@
     }
   }
 
-  // Ghost Ryan: his real Day 1 moving time, sped up so it is a fair race in the game
-  var GHOST_SPEEDUP = 9;
+  // Ghost Ryan: walks the trail at a steady 'Ryan pace', slowing on the climbs
+
   function buildGhost() {
-    const total = L.ryan.movingSec / (GHOST_SPEEDUP || 9);
+    const total = END_X / 1.2; // Ryan pace: game metres per second, scaled with the trail
     const xs = [], ts = [];
     let acc = 0;
     for (let x = 0; x <= END_X; x += 1) {
