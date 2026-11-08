@@ -22,6 +22,15 @@
   .btn.down { background: rgba(255,255,255,0.6); }
   #menu { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 62px; width: 44px; height: 44px;
     border-radius: 50%; border: none; background: rgba(0,0,0,0.35); color: #fff; font-size: 20px; cursor: pointer; }
+  #pause { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(10,20,35,0.6); z-index: 10; }
+  #pause.show { display: flex; }
+  #pause .card { display: flex; flex-direction: column; gap: 12px; min-width: 240px; padding: 22px; border-radius: 18px;
+    background: rgba(20,35,55,0.92); text-align: center; }
+  #pause .title { color: #ffd34d; font-size: 30px; font-weight: bold; margin-bottom: 4px; }
+  #pause button { font: bold 18px "Trebuchet MS", sans-serif; padding: 12px; border-radius: 12px; border: none;
+    background: #ffd34d; color: #1d2a3a; cursor: pointer; }
+  #pause button + button { background: rgba(255,255,255,0.85); }
   #mute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px;
     border-radius: 50%; border: none; background: rgba(0,0,0,0.35); color: #fff; font-size: 20px; cursor: pointer; }
 </style>
@@ -36,7 +45,15 @@
   <div class="btn lean" data-act="F">FWD<br>▶</div>
 </div>
 <button id="mute" aria-label="Toggle sound">♪</button>
-<button id="menu" aria-label="Back to day select">☰</button>
+<button id="menu" aria-label="Pause">☰</button>
+<div id="pause">
+  <div class="card">
+    <div class="title">Paused</div>
+    <button data-pause="resume">Resume</button>
+    <button data-pause="restart">Restart this day</button>
+    <button data-pause="days">Choose a day</button>
+  </div>
+</div>
 <script src="js/levels.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>

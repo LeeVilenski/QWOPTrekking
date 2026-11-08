@@ -142,6 +142,7 @@
   // ---------- Input ----------
   function startOrStep(leg) {
     Sound.init();
+    if (paused) return;
     if (state === "title") { state = "play"; controlsEl.classList.toggle("show", isTouch); popup(L.title, "#fff", true); return; }
     if (state === "finished") {
       if (t - stats.finishT > 1.5) {
@@ -176,7 +177,7 @@
     else if (k === "KeyW" || k === "ArrowUp") { input.fwd = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
     else if (k === "KeyS" || k === "ArrowDown") { input.back = true; if (state !== "play") startOrStep(-1); e.preventDefault(); }
     else if (k === "KeyM") toggleMute();
-    else if (k === "Escape") { if (state !== "title") openMenu(); }
+    else if (k === "Escape") { if (paused) resume(); else if (state === "play" || state === "fallen") pause(); }
     else if (state !== "play") startOrStep(-1);
   });
   window.addEventListener("keyup", (e) => {
@@ -216,8 +217,25 @@
   function toggleMute() { Sound.init(); const m = Sound.toggleMute(); muteBtn.textContent = m ? "×" : "♪"; muteBtn.style.opacity = m ? 0.6 : 1; }
   muteBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); toggleMute(); });
   // Back to the title screen to pick a day (or restart this one)
-  function openMenu() { Sound.init(); input.poles = input.fwd = input.back = false; P.swing = null; selectLevel(levelIdx); }
-  document.getElementById("menu").addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); openMenu(); });
+  // Pause menu: resume, restart the day, or go back to the day select
+  let paused = false;
+  const pauseEl = document.getElementById("pause");
+  function releaseAll() { input.poles = input.fwd = input.back = false; P.swing = null; for (const b of controlsEl.querySelectorAll(".btn")) b.classList.remove("down"); }
+  function pause() { if (paused) return; paused = true; releaseAll(); pauseEl.classList.add("show"); controlsEl.classList.remove("show"); }
+  function resume() { paused = false; pauseEl.classList.remove("show"); controlsEl.classList.toggle("show", isTouch && (state === "play" || state === "fallen")); last = performance.now(); }
+  function openMenu() { Sound.init(); paused = false; pauseEl.classList.remove("show"); releaseAll(); selectLevel(levelIdx); }
+  document.getElementById("menu").addEventListener("pointerdown", (e) => {
+    e.stopPropagation(); e.preventDefault(); Sound.init();
+    if (paused) resume(); else if (state === "play" || state === "fallen") pause(); else if (state === "finished") openMenu();
+  });
+  pauseEl.addEventListener("pointerdown", (e) => {
+    e.stopPropagation(); e.preventDefault();
+    const act = e.target.dataset && e.target.dataset.pause;
+    if (act === "resume") resume();
+    else if (act === "restart") { openMenu(); startOrStep(-1); }
+    else if (act === "days") openMenu();
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && (state === "play" || state === "fallen")) pause(); });
   window.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // ---------- Mechanics ----------
@@ -226,11 +244,13 @@
   // The longest comfortable stride here. Shorter uphill, a touch longer downhill.
   function maxGoodReach() {
     const g = grade(P.x);
-    return BASE_STRIDE * 1.25 * (g > 0 ? Math.max(0.55, 1 - g * 0.6) : 1 + Math.min(0.3, -g * 0.4));
+    const tired = P.stamina < 35 ? 0.8 + 0.2 * (P.stamina / 35) : 1;
+    return tired * BASE_STRIDE * 1.25 * (g > 0 ? Math.max(0.55, 1 - g * 0.6) : 1 + Math.min(0.3, -g * 0.4));
   }
   const SWING_RATE = 2.4; // metres of reach per second of holding
   function beginSwing(leg) {
     if (P.fall) return;
+    if (P.exhausted) { popup("still catching breath...", "#ffe28a"); return; }
     if (P.swing) endSwing(P.swing.leg); // plant the other foot first
     P.swing = { leg, t: 0, reach: 0 };
   }
@@ -292,7 +312,12 @@
       if (inBridge(P.x)) bridge.amp = Math.min(0.55, bridge.amp + (input.poles ? 0.03 : 0.08));
       Sound.step();
     }
-    P.stamina = Math.max(0, P.stamina - (0.3 + Math.max(0, g) * 1.7));
+    P.stamina = Math.max(0, P.stamina - (0.3 + stride * stride * 0.55 + Math.max(0, g) * stride * 3.6) * (1 + altFactor() * 0.5));
+    if (P.stamina <= 0 && !P.exhausted) {
+      P.exhausted = true; P.swing = null;
+      popup(["Ryan's knackered. Sit-down break!", "Out of puff. Bum on a rock.", "Legs have filed a complaint."][stats.steps % 3], "#ffb08a", true);
+      stats.rests = (stats.rests || 0) + 1;
+    }
     P.targetX = Math.max(P.targetX, P.x) + stride;
     foot.fromX = foot.x;
     foot.toX = Math.max(foot.x, P.targetX + stride * 0.3);
@@ -311,7 +336,7 @@
     stats.falls++;
     P.swing = null;
     shake = 0.5;
-    P.stamina = Math.max(0, P.stamina - 6);
+    P.stamina = Math.max(0, P.stamina - 8);
     Sound.fall();
     const quips = [
       "Ryan has become one with the mountain.",
@@ -398,7 +423,7 @@
     if (P.swing) {
       const sw = P.swing, good = maxGoodReach();
       sw.t += dt;
-      sw.reach = Math.min(4, sw.t * SWING_RATE * (P.stamina <= 0 ? 0.6 : 1));
+      sw.reach = Math.min(4, sw.t * SWING_RATE * (P.stamina < 35 ? 0.7 + 0.3 * (P.stamina / 35) : 1));
       const f = P.feet[sw.leg];
       const fx = P.x - 0.25 + sw.reach * 0.7;
       f.x = f.fromX = f.toX = fx; f.t = 1;
@@ -443,8 +468,13 @@
     P.prevX = P.x;
 
     // Stamina recovers while resting
-    const rest = t - P.lastStepT > 0.7 ? (input.poles ? 10 : 7) : 1.2;
-    P.stamina = Math.min(100, P.stamina + dt * rest);
+    let rest = t - P.lastStepT > 0.7 ? (input.poles ? 11 : 7) : 0.5;
+    if (P.exhausted) rest = 14;
+    P.stamina = Math.min(100, P.stamina + dt * rest * (1 - altFactor() * 0.35));
+    if (P.exhausted) {
+      P.lean *= 1 - dt * 3; P.leanVel *= 1 - dt * 3; // sitting is very stable
+      if (P.stamina >= 45) { P.exhausted = false; popup("right, onwards", "#9fef9f"); }
+    }
 
     // Snacks
     for (const s of snacks) {
@@ -1219,12 +1249,13 @@
       ctx.restore();
       return;
     }
-    const baseHip = groundY(P.x) + 0.93 + Math.sin(t * 2.2) * 0.01;
+    const baseHip = groundY(P.x) + (P.exhausted ? 0.45 : 0.93) + Math.sin(t * (P.exhausted ? 6 : 2.2)) * (P.exhausted ? 0.02 : 0.01);
     let hy = baseHip;
     for (const f of P.feet) {
       const dx = f.x - P.x;
       if (Math.abs(dx) < 0.97) hy = Math.min(hy, f.y + 0.06 + Math.sqrt(0.97 * 0.97 - dx * dx));
     }
+    if (P.exhausted) { P.feet[0].x = P.x + 0.45; P.feet[1].x = P.x + 0.65; P.feet[0].y = footY(P.feet[0].x); P.feet[1].y = footY(P.feet[1].x); }
     const lean = P.lean;
     const shX = P.x + Math.sin(lean) * (TORSO - 0.08), shY = hy + Math.cos(lean) * (TORSO - 0.08);
     let arms, poles = null;
@@ -1324,7 +1355,7 @@
     ctx.fillStyle = P.stamina > 40 ? "#6ad16a" : P.stamina > 15 ? "#f0b030" : "#e04a3a";
     ctx.fillRect(pad + 10, sy, bw * P.stamina / 100, 8);
     ctx.font = "10px sans-serif"; ctx.fillStyle = "#fff"; ctx.textBaseline = "middle";
-    ctx.fillText("stamina", pad + 14, sy + 4);
+    ctx.fillText(P.exhausted ? "knackered: resting..." : P.stamina < 35 ? "stamina: legs heavy" : "stamina", pad + 14, sy + 4);
 
     // Altimeter (right side)
     const ax = W - (sm ? 44 : 56), ay = top + 84, ah = Math.min(sm ? 110 : 150, H * 0.3);
@@ -1389,7 +1420,7 @@
       ctx.globalAlpha = Math.min(1, (12 - playTime) / 2);
       ctx.font = "15px sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.5)";
-      const msg = "Hold A / D to swing a leg, release to plant  ·  W / S: lean  ·  SPACE: poles  ·  ESC: menu";
+      const msg = "Hold A / D to swing a leg, release to plant  ·  W / S: lean  ·  SPACE: poles  ·  ESC: pause";
       ctx.strokeText(msg, W / 2, H - 30); ctx.fillText(msg, W / 2, H - 30);
       ctx.globalAlpha = 1;
     }
@@ -1434,6 +1465,7 @@
       [isTouch ? "Hold ◀ BACK / FWD ▶ to lean" : "Hold W / S or ↑ / ↓: lean forward / back", 18],
       [isTouch ? "Hold POLES to steady yourself and brace" : "Hold SPACE: trekking poles (steadier, slower)", 18],
       ["Keep the balance needle in the green. Lean into the hill!", 16, "#cfe6ff"],
+      ["Big strides and climbs burn stamina. Run out and Ryan sits down. Rest or snack!", 16, "#cfe6ff"],
       ["Brace with poles for donkeys, porters and wet rock. Race Ghost Ryan!", 16, "#cfe6ff"]
     ], isTouch ? "Tap to start" : "Press any key to start");
   }
@@ -1449,18 +1481,18 @@
       [stats.time < ghost.total ? "You beat Ghost Ryan!" : `Ghost Ryan got there ${fmtTime(stats.time - ghost.total)} earlier. (Real Ryan: ${r.moving} moving.)`, 15, stats.time < ghost.total ? "#9fef9f" : "#cfe6ff"],
       [`Your steps: ${stats.steps}   ·   Ryan's steps: ${r.steps.toLocaleString()}`, 18],
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
-      [`Falls: ${stats.falls}   ·   Donkey bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
+      [`Falls: ${stats.falls}   ·   Sit-downs: ${stats.rests || 0}   ·   Bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
       [levelIdx < window.LEVELS.length - 1 ? "Next: " + window.LEVELS[levelIdx + 1].title : "More days coming soon...", 16, "#aaa"]
     ], levelIdx < window.LEVELS.length - 1 ? (isTouch ? "Tap for the next day" : "Press any key for the next day") : (isTouch ? "Tap to return to the start" : "Press any key to return to the start"));
   }
 
   // ---------- Main loop ----------
-  let last = performance.now();
+  var last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    update(dt);
+    if (!paused) update(dt);
 
     // Camera
     const tx = P.x + 1.5, ty = groundY(P.x) + 1.4;
