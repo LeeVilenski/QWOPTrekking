@@ -14,5 +14,11 @@ Play: open `index.html` in a browser (works on desktop and phones). No build ste
 - `js/audio.js`: generated music and sound effects.
 - `assets/ryan-face.png` (optional): a square, front-on face photo. If present, it replaces the drawn face.
 
+## Days
+- Day 1: Up up up (ACA checkpoint to the teahouse, 3.62 km)
+- Day 2: Ulleri to Ghorepani (7.89 km, +848 m)
+
+Pick a day on the title screen with ← / → (or tap the sides on a phone).
+
 ## Adding days
 Add another entry to `LEVELS` in `js/levels.js`. Real GPX elevation data can replace the traced `profile` points.

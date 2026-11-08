@@ -101,8 +101,10 @@
   let porters, ghost, stats, donkeyTrains, donkeys, dust, shake = 0, nextMutter = 6, mutter = null;
   const input = { poles: false, fwd: false, back: false };
 
+  let levelIdx = 0;
+  try { levelIdx = Math.min(window.LEVELS.length - 1, +localStorage.getItem("qt-level") || 0); } catch (e) {}
   function newGame() {
-    L = window.LEVELS[0];
+    L = window.LEVELS[levelIdx];
     BASE_ELEV = L.profile[0][1];
     END_X = kmToX(L.lengthKm);
     if (L.bridge) { bridge.a = kmToX(L.bridge[0]); bridge.b = kmToX(L.bridge[1]); }
@@ -133,6 +135,7 @@
 
   function popup(text, color, big) {
     if (!big && popups.some((p) => !p.big && p.t < 0.8)) return;
+    if (big && popups.some((p) => p.text === text)) return;
     popups.push({ text, color: color || "#fff", t: 0, big: !!big });
   }
 
@@ -140,11 +143,31 @@
   function startOrStep(leg) {
     Sound.init();
     if (state === "title") { state = "play"; controlsEl.classList.toggle("show", isTouch); popup(L.title, "#fff", true); return; }
-    if (state === "finished") { if (t - stats.finishT > 1.5) { newGame(); for (const f of P.feet) f.y = footY(f.x); state = "play"; } return; }
+    if (state === "finished") {
+      if (t - stats.finishT > 1.5) {
+        // on to the next day (or back to the title after the last one)
+        if (levelIdx < window.LEVELS.length - 1) { selectLevel(levelIdx + 1); startOrStep(-1); }
+        else { selectLevel(levelIdx); }
+      }
+      return;
+    }
     if (state === "play" && leg >= 0) step(leg);
   }
 
+  function selectLevel(i) {
+    levelIdx = (i + window.LEVELS.length) % window.LEVELS.length;
+    try { localStorage.setItem("qt-level", levelIdx); } catch (e) {}
+    newGame(); for (const f of P.feet) f.y = footY(f.x);
+    camX = P.x + 1.5; camY = groundY(P.x) + 1.4;
+    state = "title"; controlsEl.classList.remove("show");
+  }
   window.addEventListener("keydown", (e) => {
+    if (state === "title" && !e.repeat) {
+      // choose the day on the title screen
+      if (e.code === "ArrowLeft" || e.code === "KeyA") { selectLevel(levelIdx - 1); e.preventDefault(); return; }
+      if (e.code === "ArrowRight" || e.code === "KeyD") { selectLevel(levelIdx + 1); e.preventDefault(); return; }
+      if (/^Digit[1-9]$/.test(e.code) && +e.code[5] <= window.LEVELS.length) { selectLevel(+e.code[5] - 1); return; }
+    }
     if (e.repeat) { if (["Space", "ArrowDown", "ArrowUp", "KeyS", "KeyW"].includes(e.code)) e.preventDefault(); return; }
     const k = e.code;
     if (k === "KeyA" || k === "ArrowLeft" || k === "KeyQ") { startOrStep(0); e.preventDefault(); }
@@ -161,7 +184,14 @@
     if (e.code === "KeyS" || e.code === "ArrowDown") input.back = false;
   });
 
-  canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); if (state !== "play") startOrStep(-1); });
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (state === "title" && window.LEVELS.length > 1) {
+      if (e.clientX < W * 0.22) { Sound.init(); selectLevel(levelIdx - 1); return; }
+      if (e.clientX > W * 0.78) { Sound.init(); selectLevel(levelIdx + 1); return; }
+    }
+    if (state !== "play") startOrStep(-1);
+  });
 
   for (const b of controlsEl.querySelectorAll(".btn")) {
     const act = b.dataset.act;
@@ -659,13 +689,16 @@
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
 
+  // Ryan as in the Ghorepani gate photo: olive tee, open blue rain jacket, dark green shorts, beard
   const RYAN = {
-    skin: "#e2ad87", hair: "#3a2a1e", shirt: "#b3322f", check1: "rgba(255,240,235,0.55)", check2: "rgba(30,30,60,0.45)",
-    shorts: "#6e6b5c", boot: "#5b4232", pack: "#6c7a63", packTop: "#2f5d8a", glasses: true, stubble: true
+    skin: "#e2ad87", hair: "#2e211a", shirt: "#5f5c3c", jacket: "#2f6fa8", beard: "#3a2a1e",
+    shorts: "#3f4a3c", boot: "#6b4a32", pack: "#2b2f33", packTop: "#3a3f45", glasses: false
   };
+  // His mates from the same photo
   const FRIEND_LOOKS = [
-    { skin: "#e6b896", hair: "#6b4a2b", shirt: "#3b3b3b", shorts: "#2b2b2b", boot: "#333", pack: "#b6d33a", packTop: "#93ad2a", glasses: false, cap: "#d23" },
-    { skin: "#d9a07a", hair: "#222", shirt: "#c43a3a", shorts: "#3a3a3a", boot: "#444", pack: "#8a8f96", packTop: "#5c6168", glasses: true, cap: null }
+    { skin: "#f0c2a0", hair: "#b5652e", beard: "#b5652e", shirt: "#3b3b3b", jacket: "#e2b01f", shorts: "#4a4a3a", boot: "#333", pack: "#3c3c3c", packTop: "#2c2c2c", glasses: false, cap: "#c0392b" },
+    { skin: "#d9a07a", hair: "#555", shirt: "#c43a3a", jacket: "#1f1f22", shorts: "#6a6f78", boot: "#5a4030", pack: "#8a8f96", packTop: "#5c6168", glasses: false, cap: null, stubble: true },
+    { skin: "#e6b896", hair: "#222", shirt: "#1f1f22", jacket: "#1f1f22", shorts: "#1f1f22", boot: "#333", pack: "#5bd13a", packTop: "#45a52b", glasses: false, cap: "#1f1f22" }
   ];
 
   // Draws a hiker. hip=(hx,hy); feet world positions; lean in radians (+ = forward)
@@ -683,7 +716,7 @@
     // Back arm
     const arms = opts.arms || [[shX - 0.15, shY - 0.55], [shX + 0.15, shY - 0.55]];
     const a0 = ik(shX, shY, arms[0][0], arms[0][1], 0.3, 0.3, -1);
-    limb(shX, shY, a0[0], a0[1], 0.1, darken(look.shirt));
+    limb(shX, shY, a0[0], a0[1], 0.1, darken(look.jacket || look.shirt));
     limb(a0[0], a0[1], a0[2], a0[3], 0.08, darken(look.skin));
     if (opts.poles) drawPole(a0[2], a0[3], opts.poles[0]);
 
@@ -721,6 +754,12 @@
       for (let j = -0.02; j < 0.63; j += 0.07) { ctx.strokeStyle = look.check2; ctx.beginPath(); ctx.moveTo(-0.15, j); ctx.lineTo(0.15, j); ctx.stroke(); }
       ctx.restore();
     }
+    if (look.jacket && look.jacket !== look.shirt) {
+      // open jacket: shirt shows down the front
+      ctx.fillStyle = look.jacket;
+      roundRect(-0.15, -0.06, 0.2, 0.7, 0.08); ctx.fill();
+      ctx.fillStyle = darken(look.jacket); ctx.fillRect(0.03, -0.04, 0.03, 0.64);
+    }
     // pack strap
     ctx.strokeStyle = "rgba(20,20,20,0.6)"; ctx.lineWidth = 0.04;
     ctx.beginPath(); ctx.moveTo(-0.08, 0.58); ctx.quadraticCurveTo(0.08, 0.3, -0.04, 0.05); ctx.stroke();
@@ -732,7 +771,7 @@
 
     // Front arm
     const a1 = ik(shX, shY, arms[1][0], arms[1][1], 0.3, 0.3, -1);
-    limb(shX, shY, a1[0], a1[1], 0.1, look.shirt);
+    limb(shX, shY, a1[0], a1[1], 0.1, look.jacket || look.shirt);
     limb(a1[0], a1[1], a1[2], a1[3], 0.08, look.skin);
     if (opts.poles) drawPole(a1[2], a1[3], opts.poles[1]);
     void topX; void topY;
@@ -763,7 +802,11 @@
     ctx.fillStyle = darken(look.skin);
     ctx.beginPath(); ctx.ellipse(-0.03, 0, 0.03, 0.045, 0, 0, Math.PI * 2); ctx.fill();
     // stubble
-    if (look.stubble) {
+    if (look.beard) {
+      ctx.fillStyle = look.beard;
+      ctx.beginPath(); ctx.ellipse(0.05, -0.07, 0.11, 0.075, -0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = look.skin; ctx.beginPath(); ctx.ellipse(0.1, -0.06, 0.035, 0.015, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (look.stubble) {
       ctx.fillStyle = "rgba(60,40,30,0.35)";
       ctx.beginPath(); ctx.ellipse(0.04, -0.08, 0.1, 0.06, -0.2, 0, Math.PI * 2); ctx.fill();
     }
@@ -900,6 +943,13 @@
     ctx.fillStyle = k < 0.15 ? "#2f6b3a" : k < 0.3 ? "#3d7d43" : "#4b8a3e";
     ctx.beginPath(); ctx.ellipse(x, y + h * 0.6, h * 0.38, h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(x - h * 0.2, y + h * 0.45, h * 0.25, h * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+    if (elevAt(xToKm(x)) > 2300) { // rhododendron forest: red blooms
+      ctx.fillStyle = k < 0.2 ? "#d63a5a" : "#e0607a";
+      for (let i = 0; i < 7; i++) {
+        const a = hash(x * 3 + i) * Math.PI * 2, r = hash(x + i * 7) * h * 0.33;
+        ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y + h * 0.6 + Math.sin(a) * r, h * 0.035, 0, Math.PI * 2); ctx.fill();
+      }
+    }
   }
   function drawWaterfall(x) {
     const y = groundY(x);
@@ -947,11 +997,27 @@
     drawHouse(x + 2, y, 7, 8, "#e48f8f", "#f3f0ea", "#c45a5a");
     ctx.fillStyle = "#f5e9a8"; ctx.fillRect(x - 1.2, y + 1.3, 3.2, 0.7);
     wText("TEAHOUSE", x + 0.4, y + 1.65, 0.38, "#7a2d2d", "center", true);
-    // finish banner
+  }
+  function drawFinishFlag() {
+    if (L.scenery.some((sc) => sc.type === "gate")) return; // the gate is the finish line
+    const x = END_X - 3.5;
     ctx.strokeStyle = "#555"; ctx.lineWidth = 0.08;
-    ctx.beginPath(); ctx.moveTo(x - 3.5, footY(x - 3.5)); ctx.lineTo(x - 3.5, footY(x - 3.5) + 3.2); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.fillRect(x - 3.5, footY(x - 3.5) + 2.4, 2.2, 0.8);
-    wText("FINISH", x - 2.4, footY(x - 3.5) + 2.8, 0.4, "#c0392b", "center", true);
+    ctx.beginPath(); ctx.moveTo(x, footY(x)); ctx.lineTo(x, footY(x) + 3.2); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.fillRect(x, footY(x) + 2.4, 2.2, 0.8);
+    wText("FINISH", x + 1.1, footY(x) + 2.8, 0.4, "#c0392b", "center", true);
+  }
+  // The "WEL-COME TO GHODEPANI POON HILL" gate from Ryan's photo. Drawn in front, you walk through it.
+  function drawGate(x) {
+    const y = footY(x), w = 4.2, h = 3.4;
+    ctx.fillStyle = "#b8392f"; ctx.fillRect(x - w / 2, y, 0.55, h); ctx.fillRect(x + w / 2 - 0.55, y, 0.55, h);
+    ctx.fillStyle = "#e9d77a"; ctx.fillRect(x - w / 2 + 0.08, y + 0.1, 0.39, h - 0.2); ctx.fillRect(x + w / 2 - 0.47, y + 0.1, 0.39, h - 0.2);
+    ctx.fillStyle = "#e9d77a"; ctx.fillRect(x - w / 2 - 0.3, y + h, w + 0.6, 0.9);
+    ctx.fillStyle = "#b8392f"; ctx.fillRect(x - w / 2 - 0.5, y + h + 0.9, w + 1, 0.22);
+    ctx.fillStyle = "#c9a24a";
+    for (const dx of [-w / 2, 0, w / 2]) { ctx.beginPath(); ctx.moveTo(x + dx - 0.1, y + h + 1.12); ctx.lineTo(x + dx, y + h + 1.5); ctx.lineTo(x + dx + 0.1, y + h + 1.12); ctx.fill(); }
+    wText("WEL-COME TO GHODEPANI POON HILL ↑", x, y + h + 0.45, 0.22, "#24306b", "center", true);
+    wText("N A M A S T E", x + w / 2 - 0.27, y + 1.7, 0.16, "#2a7a3a", "center", true);
+    drawFlags(x - w / 2 + 0.3, x + w / 2 - 0.3, h - 0.2);
   }
   function drawFlags(xa, xb, hgt) {
     const ya = groundY(xa) + hgt, yb = groundY(xb) + hgt;
@@ -1024,6 +1090,7 @@
       const sx = kmToX(s.km);
       if (sx < x0 - 8 || sx > x1 + 8) continue;
       if (s.type === "checkpoint") drawCheckpoint(sx + 4);
+      if (s.type === "gate") drawGate(sx);
       if (s.type === "flags") drawFlags(sx - 6, sx + 6, 4.5);
     }
     // snacks
@@ -1284,8 +1351,9 @@
       ["QWOP TREKKING", 54, "#ffd34d"],
       ["Ryan's Annapurna Base Camp trek", 24],
       [" ", 10],
-      [L.title + "   (" + L.date + ")", 22],
-      [L.subtitle + " · 3.62 km · +684 m", 18, "#cfe6ff"],
+      [(window.LEVELS.length > 1 ? "◀   " : "") + L.title + "   (" + L.date + ")" + (window.LEVELS.length > 1 ? "   ▶" : ""), 22],
+      [L.subtitle + " · " + L.lengthKm + " km · +" + L.ryan.gain + " m", 18, "#cfe6ff"],
+      [window.LEVELS.length > 1 ? (isTouch ? "Tap the sides to pick a day" : "← / → or 1-" + window.LEVELS.length + " to pick a day") : " ", 14, "#aaa"],
       [" ", 10],
       [isTouch ? "Tap LEFT and RIGHT in turn to walk" : "A / D or ← / →: alternate legs", 18],
       [isTouch ? "Hold ◀ BACK / FWD ▶ to lean" : "Hold W / S or ↑ / ↓: lean forward / back", 18],
@@ -1308,8 +1376,8 @@
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
       [`Falls: ${stats.falls}   ·   Donkey bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
-      ["Day 2 coming soon...", 16, "#aaa"]
-    ], isTouch ? "Tap to hike it again" : "Press any key to hike it again");
+      [levelIdx < window.LEVELS.length - 1 ? "Next: " + window.LEVELS[levelIdx + 1].title : "More days coming soon...", 16, "#aaa"]
+    ], levelIdx < window.LEVELS.length - 1 ? (isTouch ? "Tap for the next day" : "Press any key for the next day") : (isTouch ? "Tap to return to the start" : "Press any key to return to the start"));
   }
 
   // ---------- Main loop ----------
@@ -1338,6 +1406,7 @@
     drawPorters();
     drawFront();
     drawDonkeys();
+    drawFinishFlag();
     drawPlayer();
     drawDust();
     if (mutter && state === "play") wText(mutter.text, P.x, groundY(P.x) + 2.25, 0.3, "#fff", "center", true);
