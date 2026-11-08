@@ -1,4 +1,4 @@
-# QWOP Trekking: Ryan's Annapurna
+# Nepal Trek: Ryan's Annapurna
 
 A wobbly, tongue-in-cheek browser walking sim based on Ryan's Annapurna Base Camp trek.
 

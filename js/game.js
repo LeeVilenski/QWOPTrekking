@@ -1,4 +1,4 @@
-// QWOP Trekking: a wobbly walking sim of Ryan's Annapurna trek.
+// Nepal Trek: a wobbly walking sim of Ryan's Annapurna trek.
 (function () {
   "use strict";
 
@@ -1588,7 +1588,7 @@
 
   function drawTitle() {
     centerCard([
-      ["QWOP TREKKING", 54, "#ffd34d"],
+      ["NEPAL TREK", 54, "#ffd34d"],
       ["Ryan's Annapurna Base Camp trek", 24],
       [" ", 10],
       [(window.LEVELS.length > 1 ? "◀   " : "") + L.title + "   (" + L.date + ")" + (window.LEVELS.length > 1 ? "   ▶" : ""), 22],
