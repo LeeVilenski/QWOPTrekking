@@ -3,9 +3,9 @@
   "use strict";
 
   // ---------- Tuning ----------
-  // Real metres per game metre. One scale for every day, so a ~15 km day takes ~15 minutes.
+  // Real metres per game metre. One scale for every day, so even the 20 km day stays a few minutes long.
   // Elevation uses the same compression, so slopes stay as steep as the real trail.
-  const H_SCALE = 20;
+  const H_SCALE = 30;
   const V_EXAG = 1.3;     // vertical exaggeration so the climbs look as hard as they felt
   const BASE_STRIDE = 1.25;
   const FALL_ANGLE = 1.1; // radians of lean before Ryan topples
@@ -1073,6 +1073,10 @@
     grd.addColorStop(0, mix("#4f97d6", "#7d8b99", d));
     grd.addColorStop(1, mix("#cfe6f5", "#c4ccd2", d));
     ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+    if (L.dawn) {
+      const dk = Math.max(0, 1 - xToKm(P.x) / L.dawn);
+      if (dk > 0) { const g2 = ctx.createLinearGradient(0, 0, 0, H); g2.addColorStop(0, `rgba(40,60,120,${0.5 * dk})`); g2.addColorStop(0.7, `rgba(255,170,90,${0.35 * dk})`); g2.addColorStop(1, "rgba(255,170,90,0)"); ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H); }
+    }
 
     // Far snowy range with a fishtail peak (Machhapuchhre) in the middle distance
     const rise = Math.min(1, camY / 200);
@@ -1092,6 +1096,8 @@
     ctx.save(); ctx.clip();
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.fillRect(0, 0, W, baseY - H * 0.2);
+    const dawn = L.dawn ? Math.max(0, 1 - xToKm(P.x) / L.dawn) : 0;
+    if (dawn > 0) { ctx.fillStyle = `rgba(255,150,40,${0.55 * dawn})`; ctx.fillRect(0, 0, W, baseY - H * 0.2); } // alpenglow
     ctx.restore();
 
     // Mid hills (green, terraced)

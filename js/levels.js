@@ -320,5 +320,75 @@ window.LEVELS = [
     ],
     // From Aidan's watch
     ryan: { steps: 13938, moving: "2:49:58", movingSec: 10198, gain: 1006 }
+  },
+  {
+    id: 7,
+    title: "Day 7: ABC to Lower Sinuwa",
+    subtitle: "Biggest day, but mostly downhill. Epic sunrise start.",
+    date: "4 Nov 2026",
+    lengthKm: 20.46,
+    finishText: "Back down to Lower Sinuwa!",
+    dawn: 2.5,
+    treeline: 3550,
+    snowline: 3900,
+    profile: [
+      [0.0, 4120], [0.5, 4080], [1.0, 4020], [1.5, 3990], [2.0, 3940],
+      [2.5, 3870], [3.0, 3780], [3.5, 3700], [4.0, 3620], [4.5, 3520],
+      [5.0, 3400], [5.5, 3340], [6.0, 3310], [6.5, 3290], [7.0, 3270],
+      [7.5, 3210], [8.0, 3180], [8.5, 3140], [9.0, 3100], [9.5, 2980],
+      [10.0, 2880], [10.5, 2830], [11.0, 2780], [11.5, 2700], [12.0, 2620],
+      [12.5, 2570], [13.0, 2530], [13.5, 2500], [14.0, 2470], [14.5, 2400],
+      [15.0, 2340], [15.4, 2318], [15.8, 2360], [16.2, 2420], [16.8, 2445],
+      [17.4, 2438], [17.8, 2420], [18.4, 2390], [19.0, 2375], [19.5, 2340],
+      [20.0, 2230], [20.46, 2140]
+    ],
+    stairs: [[2.8, 3.4], [4.4, 5.1], [9.3, 10.1], [11.3, 12.1], [14.3, 15.2], [15.6, 16.3], [19.6, 20.46]],
+    bamboo: [[11.0, 13.6]],
+    snacks: [
+      { km: 1.8, type: "tea" },
+      { km: 4.4, type: "snickers" },
+      { km: 7.0, type: "tea" },
+      { km: 9.6, type: "dalbhat" },
+      { km: 12.4, type: "snickers" },
+      { km: 15.0, type: "tea" },
+      { km: 17.6, type: "snickers" },
+      { km: 19.4, type: "tea" }
+    ],
+    weather: [
+      { from: 0.0, to: 2.5, type: "snow" },
+      { from: 3.0, to: 9.0, type: "sun" },
+      { from: 9.0, to: 10.5, type: "fog" },
+      { from: 13.6, to: 17.0, type: "sun" },
+      { from: 17.5, to: 20.46, type: "drizzle" }
+    ],
+    wet: [[1.0, 1.4], [9.4, 9.9], [15.2, 15.45], [19.7, 20.2]],
+    bridge: [15.3, 15.38],
+    bridgeStyle: "plank",
+    donkeys: [8.4, 13.0, 17.0],
+    porters: [1.2, 4.8, 7.6, 10.4, 14.2, 18.4],
+    scenery: [
+      { km: 0.08, type: "board", text: ["NAMASTE", "ANNAPURNA BASE CAMP", "4130m"] },
+      { km: 1.6, type: "flags" },
+      { km: 3.5, type: "board", text: ["WELCOME TO", "MACHHAPUCHHRE BASE CAMP", "3700m"] },
+      { km: 5.6, type: "village" },
+      { km: 8.1, type: "village" },
+      { km: 9.6, type: "village" },
+      { km: 11.6, type: "village" },
+      { km: 14.0, type: "flags" },
+      { km: 16.6, type: "village" },
+      { km: 18.4, type: "flags" },
+      { km: 20.4, type: "village" },
+      { km: 20.46, type: "teahouse" }
+    ],
+    friends: [
+      { km: 0.4, say: "Look at that sunrise!!" },
+      { km: 3.6, say: "Bye bye, MBC" },
+      { km: 7.0, say: "Downhill all day, they said" },
+      { km: 11.5, say: "Bamboo again!" },
+      { km: 15.6, say: "Wait, why are we going UP?" },
+      { km: 19.0, say: "Nearly there, knees" }
+    ],
+    // From Aidan's watch
+    ryan: { steps: 27486, moving: "5:39:44", movingSec: 20384, gain: 422 }
   }
 ];
