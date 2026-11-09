@@ -66,6 +66,12 @@ window.Sound = (function () {
     fall() { tone(320, 0.6, "sawtooth", 0.2, 70); setTimeout(() => tone(80, 0.3, "sine", 0.6, 40), 450); },
     snack() { tone(660, 0.12, "triangle", 0.3); setTimeout(() => tone(990, 0.2, "triangle", 0.3), 90); },
     bells() { for (let i = 0; i < 6; i++) setTimeout(() => tone(1400 + Math.random() * 300, 0.25, "triangle", 0.12), i * 220 + Math.random() * 80); },
+    engine() {
+      // jeep rumbles into life and pulls away
+      tone(55, 1.6, "sawtooth", 0.12, 110);
+      setTimeout(() => tone(70, 2.2, "sawtooth", 0.1, 160), 500);
+      setTimeout(() => { tone(600, 0.15, "square", 0.05); setTimeout(() => tone(600, 0.25, "square", 0.05), 200); }, 900); // beep beep
+    },
     gust() { tone(500, 0.5, "sine", 0.05, 300); },
     finish() { [0, 150, 300, 500].forEach((d, i) => setTimeout(() => tone([587, 740, 880, 1175][i], 0.4, "triangle", 0.3), d)); },
     toggleMute() {

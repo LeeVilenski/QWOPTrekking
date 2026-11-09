@@ -126,6 +126,7 @@
     weatherIntensity = { drizzle: 0, wind: 0, fog: 0, sun: 0, snow: 0 };
     rainDrops = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.6 }));
     stats = { steps: 0, falls: 0, snacks: 0, bonks: 0 };
+    outro = null;
     donkeyTrains = (L.donkeys || []).map((km) => ({ x: kmToX(km), started: false }));
     donkeys = []; dust = []; shake = 0; nextMutter = 6; mutter = null;
     playTime = 0;
@@ -481,6 +482,7 @@
 
     if (state === "title") { idleFriends(dt); return; }
     if (state === "finished") return;
+    if (state === "outro") { updateOutro(dt); return; }
 
     playTime += dt;
     if (input.poles && !has("poles")) { input.poles = false; popup("No poles packed!", "#ffb08a"); }
@@ -600,13 +602,50 @@
     if (Math.abs(P.lean) > FALL_ANGLE) startFall(Math.sign(P.lean));
 
     if (P.x >= END_X - 1) {
-      state = "finished";
-      stats.finishT = t;
-      stats.time = playTime;
-      saveBest();
-      controlsEl.classList.remove("show");
-      Sound.finish();
+      const jeep = L.scenery.find((sc) => sc.type === "jeep");
+      if (jeep) {
+        // finale: Ryan climbs into the jeep and it drives off to Pokhara
+        outro = { t: 0, jx: kmToX(jeep.km), dx: 0, hidden: false, time: playTime, revved: false };
+        state = "outro"; releaseAll(); controlsEl.classList.remove("show");
+        P.lean = 0; P.leanVel = 0;
+        return;
+      }
+      finishLevel(playTime);
     }
+  }
+  function finishLevel(time) {
+    state = "finished";
+    stats.finishT = t;
+    stats.time = time;
+    saveBest();
+    controlsEl.classList.remove("show");
+    Sound.finish();
+  }
+
+  var outro = null;
+  function updateOutro(dt) {
+    const o = outro;
+    o.t += dt;
+    const door = o.jx - 0.9;
+    if (o.t < 1.1) {
+      // stroll to the jeep door
+      P.x += (door - P.x) * Math.min(1, dt * 3);
+      const ph = o.t * 9;
+      P.feet[0].x = P.x - 0.15 + Math.sin(ph) * 0.2; P.feet[1].x = P.x + 0.15 - Math.sin(ph) * 0.2;
+      for (const f of P.feet) f.y = footY(f.x) + Math.max(0, Math.cos(ph)) * 0.05;
+    } else if (!o.hidden) {
+      o.hidden = true;
+      popup("Bye bye Nepal! 👋", "#fff", true);
+    }
+    if (o.t > 1.6 && !o.revved) { o.revved = true; Sound.engine(); }
+    if (o.t > 1.9) {
+      const k = o.t - 1.9;
+      o.dx = 1.4 * k * k + 0.5 * k; // pulls away, picking up speed
+      if (Math.random() < 0.7) dust.push({ x: o.jx + o.dx - 1.9, y: footY(o.jx + o.dx - 1.9) + 0.1, vx: -1 - Math.random(), vy: 0.3 + Math.random() * 0.6, t: 0 });
+    }
+    for (const d of dust) { d.t += dt; d.x += d.vx * dt; d.y += d.vy * dt; }
+    dust = dust.filter((d) => d.t < 0.6);
+    if (o.t > 6) finishLevel(o.time);
   }
 
   const SNACKS = {
@@ -1266,13 +1305,26 @@
   }
   // The jeep back to Pokhara, waiting at the end of the trail
   function drawJeep(x) {
-    const y = footY(x) + 0.35, bob = Math.sin(t * 9) * 0.015;
+    const moving = outro && outro.dx > 0;
+    if (outro) x += outro.dx;
+    const y = footY(x) + 0.35, bob = Math.sin(t * (moving ? 22 : 9)) * (moving ? 0.04 : 0.015);
     ctx.fillStyle = "#1f1f22";
     for (const wx of [x - 1.1, x + 1.1]) { ctx.beginPath(); ctx.arc(wx, y, 0.38, 0, Math.PI * 2); ctx.fill(); }
     ctx.fillStyle = "#888"; for (const wx of [x - 1.1, x + 1.1]) { ctx.beginPath(); ctx.arc(wx, y, 0.15, 0, Math.PI * 2); ctx.fill(); }
     ctx.fillStyle = "#2f6b3a"; roundRect(x - 1.8, y + 0.15 + bob, 3.6, 0.8, 0.12); ctx.fill();
     ctx.fillStyle = "#3d8049"; roundRect(x - 1.5, y + 0.9 + bob, 2.3, 0.75, 0.1); ctx.fill();
-    ctx.fillStyle = "#bfe0f0"; ctx.fillRect(x - 1.35, y + 1.05 + bob, 0.85, 0.48); ctx.fillRect(x - 0.35, y + 1.05 + bob, 0.95, 0.48);
+    ctx.fillStyle = outro && outro.hidden ? "rgba(191,224,240,0.35)" : "#bfe0f0"; ctx.fillRect(x - 1.35, y + 1.05 + bob, 0.85, 0.48); ctx.fillRect(x - 0.35, y + 1.05 + bob, 0.95, 0.48);
+    if (outro && outro.hidden) {
+      // Ryan in the back seat, waving out of the window
+      const hx = x - 0.92, hy = y + 1.25 + bob;
+      ctx.fillStyle = RYAN.skin;
+      ctx.beginPath(); ctx.arc(hx, hy, 0.17, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = RYAN.beard; ctx.beginPath(); ctx.ellipse(hx - 0.03, hy - 0.08, 0.12, 0.07, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = RYAN.hair; ctx.beginPath(); ctx.ellipse(hx, hy + 0.08, 0.17, 0.1, 0, 0, Math.PI); ctx.fill();
+      const wave = Math.sin(t * 10) * 0.35;
+      limb(hx - 0.25, hy - 0.1, hx - 0.5 + wave * 0.3, hy + 0.45, 0.08, RYAN.skin);
+      ctx.fillStyle = RYAN.skin; ctx.beginPath(); ctx.arc(hx - 0.5 + wave * 0.3, hy + 0.5, 0.07, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.fillStyle = "#555"; ctx.fillRect(x - 1.6, y + 1.65 + bob, 2.6, 0.08); // roof rack
     ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 1.3, y + 1.73 + bob, 0.7, 0.35); ctx.fillStyle = "#2f6fd6"; ctx.fillRect(x - 0.5, y + 1.73 + bob, 0.8, 0.4);
     ctx.fillStyle = "#ffd34d"; ctx.fillRect(x + 1.7, y + 0.55 + bob, 0.12, 0.15);
@@ -1438,6 +1490,7 @@
   }
 
   function drawPlayer() {
+    if (outro && outro.hidden && state === "outro") return;
     if (P.fall) {
       const f = P.fall;
       const cx = P.x, cy = groundY(P.x) + 0.45;
@@ -1695,6 +1748,19 @@
     ], isTouch ? "Tap to start" : "Press any key to start");
   }
 
+  function drawOutro() {
+    screenTransform();
+    const k = Math.min(1, outro.t / 1.2);
+    ctx.globalAlpha = k;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `bold ${W < 600 ? 22 : 34}px "Trebuchet MS", sans-serif`;
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    const msg = outro.t < 1.6 ? "Bye bye Nepal! 👋" : "2.5 hours to Pokhara... 🚙";
+    ctx.strokeText(msg, W / 2, H * 0.25); ctx.fillStyle = "#ffd34d"; ctx.fillText(msg, W / 2, H * 0.25);
+    ctx.globalAlpha = 1;
+    // fade to the finish card at the end
+    if (outro.t > 5) { ctx.fillStyle = `rgba(10,20,35,${Math.min(0.55, (outro.t - 5) * 0.55)})`; ctx.fillRect(0, 0, W, H); }
+  }
   function drawFinish() {
     const r = L.ryan;
     const ratio = stats.steps ? (r.steps / stats.steps) : 0;
@@ -1854,7 +1920,8 @@
     if (!paused) update(dt);
 
     // Camera
-    const tx = P.x + 1.5, ty = groundY(P.x) + 1.4;
+    let tx = P.x + 1.5, ty = groundY(P.x) + 1.4;
+    if (state === "outro" && outro.dx > 0) { tx = outro.jx + Math.min(outro.dx, 1.4 * 1.6 * 1.6 + 0.8); ty = groundY(tx) + 1.4; }
     camX += (tx - camX) * Math.min(1, dt * 4);
     camY += (ty - camY) * Math.min(1, dt * 3);
     if (Math.abs(camX - tx) > 30) { camX = tx; camY = ty; }
@@ -1880,6 +1947,7 @@
     drawWeather();
     if (state === "title" && !splashOpen) drawTitle();
     else if (state === "finished") drawFinish();
+    else if (state === "outro") drawOutro();
     else drawHUD();
 
     requestAnimationFrame(frame);
