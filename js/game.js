@@ -224,7 +224,7 @@
       if (t - stats.finishT > 1.5) {
         // on to the next day (or back to the title after the last one)
         if (levelIdx < window.LEVELS.length - 1) { selectLevel(levelIdx + 1); startOrStep(-1); }
-        else { selectLevel(levelIdx); }
+        else { selectLevel(levelIdx); showSplash(); }
       }
       return;
     }
@@ -240,6 +240,10 @@
     state = "title"; controlsEl.classList.remove("show");
   }
   window.addEventListener("keydown", (e) => {
+    if (splashOpen) {
+      if (e.code === "Enter" || e.code === "Space") { e.preventDefault(); playDay(levelIdx); }
+      return;
+    }
     if (state === "packing") { if (e.code === "Enter") packEl.querySelector(".pgo").click(); return; }
     if (state === "title" && !e.repeat) {
       // choose the day on the title screen
@@ -301,7 +305,7 @@
   function releaseAll() { input.poles = input.fwd = input.back = false; P.swing = null; for (const b of controlsEl.querySelectorAll(".btn")) b.classList.remove("down"); }
   function pause() { if (paused) return; paused = true; releaseAll(); pauseEl.classList.add("show"); controlsEl.classList.remove("show"); }
   function resume() { paused = false; pauseEl.classList.remove("show"); controlsEl.classList.toggle("show", isTouch && (state === "play" || state === "fallen")); last = performance.now(); }
-  function openMenu() { Sound.init(); paused = false; pauseEl.classList.remove("show"); releaseAll(); selectLevel(levelIdx); }
+  function openMenu() { Sound.init(); paused = false; pauseEl.classList.remove("show"); releaseAll(); selectLevel(levelIdx); showSplash(); }
   document.getElementById("menu").addEventListener("pointerdown", (e) => {
     e.stopPropagation(); e.preventDefault(); Sound.init();
     if (paused) resume(); else if (state === "play" || state === "fallen") pause(); else if (state === "finished") openMenu();
@@ -599,6 +603,7 @@
       state = "finished";
       stats.finishT = t;
       stats.time = playTime;
+      saveBest();
       controlsEl.classList.remove("show");
       Sound.finish();
     }
@@ -1707,6 +1712,140 @@
     ], levelIdx < window.LEVELS.length - 1 ? (isTouch ? "Tap for the next day" : "Press any key for the next day") : (isTouch ? "Tap to return to the start" : "Press any key to return to the start"));
   }
 
+  // ---------- Home screen: real trek numbers, full route, best stats ----------
+  var splashOpen = false;
+  const splashEl = document.getElementById("splash");
+  function loadBest() { try { return JSON.parse(localStorage.getItem("qt-best") || "{}"); } catch (e) { return {}; } }
+  function saveBest() {
+    const all = loadBest(), id = L.id, b = all[id] || { runs: 0 };
+    b.runs = (b.runs || 0) + 1;
+    if (!b.time || stats.time < b.time) b.time = stats.time;
+    if (b.falls === undefined || stats.falls < b.falls) b.falls = stats.falls;
+    if (!b.fewestSteps || stats.steps < b.fewestSteps) b.fewestSteps = stats.steps;
+    if (stats.time < END_X / 1.2) b.beatGhost = true;
+    b.ghost = END_X / 1.2;
+    all[id] = b;
+    try { localStorage.setItem("qt-best", JSON.stringify(all)); } catch (e) {}
+  }
+  const fmtHMS = (sec) => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`; };
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function routeSVG(best) {
+    const days = window.LEVELS;
+    const totalKm = days.reduce((a, d) => a + d.lengthKm, 0);
+    const Wv = 1000, Hv = 300, pad = { l: 44, r: 16, t: 34, b: 34 };
+    const minE = 1400, maxE = 4400;
+    const X = (km) => pad.l + km / totalKm * (Wv - pad.l - pad.r);
+    const Y = (e) => pad.t + (1 - (e - minE) / (maxE - minE)) * (Hv - pad.t - pad.b);
+    let off = 0, bands = "", grid = "", labels = "", line = "";
+    for (const e of [2000, 3000, 4000]) grid += `<line x1="${pad.l}" x2="${Wv - pad.r}" y1="${Y(e)}" y2="${Y(e)}" class="rg"/><text x="${pad.l - 6}" y="${Y(e) + 4}" class="ry">${e / 1000}k</text>`;
+    days.forEach((d, i) => {
+      const pts = d.profile.map(([km, e]) => `${X(off + km).toFixed(1)},${Y(e).toFixed(1)}`);
+      const done = best[d.id];
+      const area = `M${X(off).toFixed(1)},${Y(minE)} L${pts.join(" L")} L${X(off + d.lengthKm).toFixed(1)},${Y(minE)} Z`;
+      bands += `<path d="${area}" class="rb ${done ? "done" : ""} ${i % 2 ? "odd" : ""}" data-day="${i}"><title>${esc(d.title)}</title></path>`;
+      line += (i ? " L" : "M") + pts.join(" L");
+      const mid = X(off + d.lengthKm / 2);
+      labels += `<text x="${mid}" y="${Hv - 12}" class="rd" data-day="${i}">D${d.id}${done ? " ✓" : ""}</text>`;
+      if (d.endName) {
+        const ex = X(off + d.lengthKm), ee = d.profile[d.profile.length - 1][1];
+        const last = i === days.length - 1, isPeak = ee > 4000; // the summit gets its own big label
+        labels += `<circle cx="${ex}" cy="${Y(ee)}" r="3.5" class="rs"/>` + (isPeak ? "" :
+          `<text x="${last ? ex + 2 : ex}" y="${Y(ee) - 9}" class="rn" ${last ? 'text-anchor="end"' : ""}>${esc(d.endName)}</text>`);
+      }
+      if (i === 0 && d.startName) labels += `<circle cx="${X(0)}" cy="${Y(d.profile[0][1])}" r="3.5" class="rs"/><text x="${X(0) + 4}" y="${Y(d.profile[0][1]) - 9}" class="rn" text-anchor="start">${esc(d.startName)}</text>`;
+      off += d.lengthKm;
+    });
+    // highlights
+    const hl = [["Thapla Danda 3,199 m", 2, 2.5], ["MBC", 5, 4.45]];
+    let o2 = 0; const offs = days.map((d) => { const v = o2; o2 += d.lengthKm; return v; });
+    for (const [txt, di, km] of hl) {
+      if (!days[di]) continue;
+      const d = days[di]; let e = 0; for (const [k, v] of d.profile) if (k <= km) e = v;
+      labels += `<text x="${X(offs[di] + km)}" y="${Y(e) - 10}" class="rh">▲ ${esc(txt)}</text>`;
+    }
+    const peak = Y(4138);
+    return `<svg viewBox="0 0 ${Wv} ${Hv}" class="route" role="img" aria-label="Elevation profile of the whole trek">
+      ${grid}${bands}<path d="${line}" class="rl"/>${labels}
+      <text x="${X(offs[5] + days[5].lengthKm)}" y="${peak - 16}" class="rpk">🏔️ Annapurna Base Camp 4,130 m</text>
+      <text x="${pad.l}" y="18" class="rt">${totalKm.toFixed(1)} km · 29 Oct – 5 Nov 2026</text></svg>`;
+  }
+
+  function renderSplash() {
+    const days = window.LEVELS, best = loadBest();
+    const sum = (f) => days.reduce((a, d) => a + f(d), 0);
+    const realKm = sum((d) => d.lengthKm), realGain = sum((d) => d.ryan.gain), realSec = sum((d) => d.ryan.movingSec), realSteps = sum((d) => d.ryan.steps);
+    const doneDays = days.filter((d) => best[d.id]);
+    const yourSec = sum((d) => (best[d.id] ? best[d.id].time : 0));
+    const yourFalls = sum((d) => (best[d.id] ? best[d.id].falls : 0));
+    const ghosts = days.filter((d) => best[d.id] && best[d.id].beatGhost).length;
+    const cards = days.map((d, i) => {
+      const b = best[d.id];
+      const yours = b ? `<div class="yb"><b>Your best</b>
+          <span>⏱ ${fmtTime(b.time)}${b.beatGhost ? ' <i title="Beat Ghost Ryan">👻✓</i>' : ""}</span>
+          <span>🤕 ${b.falls} fall${b.falls === 1 ? "" : "s"}${b.falls === 0 ? " 🏅" : ""}</span>
+          <span class="cmp">${Math.round(d.ryan.movingSec / b.time)}× faster than the real thing</span></div>`
+        : `<div class="yb none">Not walked yet</div>`;
+      return `<div class="day ${b ? "done" : ""} ${i === levelIdx ? "sel" : ""}" data-day="${i}">
+        <div class="dh"><span class="dn">Day ${d.id}</span><span class="dd">${esc(d.date)}</span></div>
+        <div class="dt">${esc(d.title.replace(/^Day \d+: /, ""))}</div>
+        <div class="dq">“${esc(d.quote || d.subtitle)}”</div>
+        <div class="dr"><span>📏 ${d.lengthKm} km</span><span>⛰️ +${d.ryan.gain} m</span><span>⏱ ${d.ryan.moving}</span><span>👣 ${d.ryan.steps.toLocaleString()}</span></div>
+        ${d.source ? `<div class="src">stats from ${esc(d.source)}'s watch</div>` : ""}
+        ${yours}
+        <button class="play" data-play="${i}">${b ? "Walk it again" : "Walk this day"} ▶</button>
+      </div>`;
+    }).join("");
+    splashEl.innerHTML = `<div class="sp">
+      <header>
+        <div class="kick">Ryan's Annapurna Base Camp trek</div>
+        <h1>NEPAL TREK</h1>
+        <div class="sub">8 days · Birethanti to ABC and back to Jhinu Danda · 29 Oct – 5 Nov 2026</div>
+      </header>
+      <section class="tiles">
+        <div class="tile"><b>${realKm.toFixed(1)} km</b><span>walked</span></div>
+        <div class="tile"><b>${realGain.toLocaleString()} m</b><span>climbed</span></div>
+        <div class="tile"><b>${fmtHMS(realSec)}</b><span>moving</span></div>
+        <div class="tile"><b>${realSteps.toLocaleString()}</b><span>steps</span></div>
+        <div class="tile"><b>4,138 m</b><span>highest point</span></div>
+      </section>
+      <section class="routebox">${routeSVG(best)}
+        <div class="rcap">The whole trek, one day after another. Tap a day to pick it.</div>
+      </section>
+      <section class="you">
+        <b>Your trek:</b> ${doneDays.length}/${days.length} days walked
+        ${doneDays.length ? ` · ${fmtTime(yourSec)} total · ${yourFalls} falls · beat Ghost Ryan on ${ghosts}` : " · start with Day 1!"}
+        ${doneDays.length === days.length ? ' · <span class="ok">Full trek complete 🙏</span>' : ""}
+      </section>
+      <section class="days">${cards}</section>
+      <details class="how"><summary>How to play</summary>
+        <p><b>Legs:</b> hold A / D (or ← / →, or the LEFT / RIGHT buttons) to swing a leg, let go to plant it. Longer hold = longer stride. Too long = the splits.</p>
+        <p><b>Balance:</b> W / S (or ◀ BACK / FWD ▶) to lean. Lean into the hills. Hold SPACE / POLES to steady yourself and brace for donkeys and porters.</p>
+        <p><b>Stamina:</b> big strides and climbs burn it. Stand still to recover. Run out and Ryan sits down. Pack Snickers.</p>
+        <p><b>Packing:</b> every item weighs you down, but leaving things out makes the weather harder. Check the forecast.</p>
+      </details>
+      <footer>Made for Ryan · Namaste 🙏</footer>
+    </div>`;
+  }
+  function showSplash() {
+    renderSplash(); splashOpen = true; splashEl.classList.add("show");
+    controlsEl.classList.remove("show"); packEl.classList.remove("show");
+    splashEl.scrollTop = 0;
+  }
+  function hideSplash() { splashOpen = false; splashEl.classList.remove("show"); }
+  function playDay(i) { Sound.init(); hideSplash(); selectLevel(i); openPacking(); }
+  splashEl.addEventListener("click", (e) => {
+    const pb = e.target.closest("[data-play]");
+    if (pb) { playDay(+pb.dataset.play); return; }
+    const d = e.target.closest("[data-day]");
+    if (d) {
+      levelIdx = +d.dataset.day;
+      const card = splashEl.querySelector(`.day[data-day="${levelIdx}"]`);
+      splashEl.querySelectorAll(".day.sel").forEach((c) => c.classList.remove("sel"));
+      if (card) { card.classList.add("sel"); card.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    }
+  });
+
   // ---------- Main loop ----------
   var last = performance.now();
   function frame(now) {
@@ -1739,13 +1878,14 @@
     if (mutter && state === "play") wText(mutter.text, P.x, groundY(P.x) + 2.25, 0.3, "#fff", "center", true);
     flushWorldTexts();
     drawWeather();
-    if (state === "title") drawTitle();
+    if (state === "title" && !splashOpen) drawTitle();
     else if (state === "finished") drawFinish();
     else drawHUD();
 
     requestAnimationFrame(frame);
   }
   camX = P.x + 1.5; camY = groundY(P.x) + 1.4;
+  showSplash();
   requestAnimationFrame(frame);
 
   // Exposed for testing in the console

@@ -3,6 +3,9 @@
 window.LEVELS = [
   {
     id: 1,
+    endName: "Ulleri",
+    startName: "Birethanti",
+    quote: "Up up up",
     title: "Day 1: Up up up",
     subtitle: "ACA checkpoint to the teahouse",
     date: "29 Oct 2026",
@@ -49,6 +52,8 @@ window.LEVELS = [
   },
   {
     id: 2,
+    endName: "Ghorepani",
+    quote: "ABC Day 2. Ulleri to Ghorepani",
     title: "Day 2: Ulleri to Ghorepani",
     subtitle: "Ulleri's stone steps to the Poon Hill gate",
     date: "30 Oct 2026",
@@ -99,6 +104,8 @@ window.LEVELS = [
   },
   {
     id: 3,
+    endName: "",
+    quote: "Wet and so steps up and down. Hit 3199m today",
     title: "Day 3: Over Thapla Danda",
     subtitle: "Up into the fog at 3,199 m, then a long wet descent",
     date: "31 Oct 2026",
@@ -153,6 +160,8 @@ window.LEVELS = [
   },
   {
     id: 4,
+    endName: "Chhomrong",
+    quote: "What goes down must go up.",
     title: "Day 4: Down and up to Chhomrong",
     subtitle: "What goes down must go up",
     date: "1 Nov 2026",
@@ -207,6 +216,8 @@ window.LEVELS = [
   },
   {
     id: 5,
+    endName: "Deurali",
+    quote: "Lower Sinuwa to Deurali",
     title: "Day 5: Sinuwa to Deurali",
     subtitle: "Through Bamboo, Dovan and Himalaya. The big one.",
     date: "2 Nov 2026",
@@ -264,11 +275,13 @@ window.LEVELS = [
       { km: 9.8, say: "Himalaya. The hotel, not the range." },
       { km: 12.5, say: "Getting chilly up here..." }
     ],
-    // From Aidan's watch: Ryan hasn't uploaded this one yet
+    source: "Aidan",
     ryan: { steps: 24368, moving: "4:55:44", movingSec: 17744, gain: 1571 }
   },
   {
     id: 6,
+    endName: "ABC",
+    quote: "What a day!!!! Nothing else needed to be said",
     title: "Day 6: Deurali to ABC",
     subtitle: "What a day!!!! Up to Annapurna Base Camp, 4,130 m",
     date: "3 Nov 2026",
@@ -318,11 +331,13 @@ window.LEVELS = [
       { km: 6.3, say: "Snow!! Actual snow!" },
       { km: 7.3, say: "What a day!!!!" }
     ],
-    // From Aidan's watch
+    source: "Aidan",
     ryan: { steps: 13938, moving: "2:49:58", movingSec: 10198, gain: 1006 }
   },
   {
     id: 7,
+    endName: "Lower Sinuwa",
+    quote: "Biggest day, but mostly down hill. Again epic start to the day",
     title: "Day 7: ABC to Lower Sinuwa",
     subtitle: "Biggest day, but mostly downhill. Epic sunrise start.",
     date: "4 Nov 2026",
@@ -388,11 +403,13 @@ window.LEVELS = [
       { km: 15.6, say: "Wait, why are we going UP?" },
       { km: 19.0, say: "Nearly there, knees" }
     ],
-    // From Aidan's watch
+    source: "Aidan",
     ryan: { steps: 27486, moving: "5:39:44", movingSec: 20384, gain: 422 }
   },
   {
     id: 8,
+    endName: "Jhinu Danda",
+    quote: "A short final one before 2.5 hr jeep back to Pokhara",
     title: "Day 8: Sinuwa to Jhinu Danda",
     subtitle: "The finale. A short one before the jeep to Pokhara.",
     date: "5 Nov 2026",
@@ -437,7 +454,7 @@ window.LEVELS = [
       { km: 3.2, say: "Down, down, down..." },
       { km: 5.0, say: "Jeep. Beer. Pokhara." }
     ],
-    // From Aidan's watch
+    source: "Aidan",
     ryan: { steps: 11540, moving: "1:58:13", movingSec: 7093, gain: 419 }
   }
 ];

@@ -14,6 +14,9 @@ Play: open `index.html` in a browser (works on desktop and phones). No build ste
 - `js/audio.js`: generated music and sound effects.
 - `assets/ryan-face.png` (optional): a square, front-on face photo. If present, it replaces the drawn face.
 
+## Home screen
+The game opens on a home screen with the real trek totals, an elevation profile of the whole route (days you have finished light up), and a card per day with the real stats and your best time and falls (saved in the browser).
+
 ## Packing
 Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower legs, more tiring), and leaving useful items out makes certain sections harder (no poles, no rain jacket in the drizzle, slippery rock without grippy socks...). The packing screen shows the day's forecast.
 

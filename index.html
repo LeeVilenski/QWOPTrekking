@@ -68,7 +68,60 @@
     .pbar { margin: 3px auto 0; }
     .pgo { font-size: 17px; padding: 8px; }
   }
-  #mute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px;
+  #splash { position: fixed; inset: 0; z-index: 20; display: none; overflow-y: auto; touch-action: pan-y;
+    background: linear-gradient(180deg, #0f1f38 0%, #1d3a5f 45%, #2b5a7a 100%); color: #fff;
+    font-family: "Trebuchet MS", system-ui, sans-serif; -webkit-overflow-scrolling: touch; }
+  #splash.show { display: block; }
+  .sp { max-width: 980px; margin: 0 auto; padding: calc(18px + env(safe-area-inset-top)) 16px 30px; box-sizing: border-box; }
+  .sp header { text-align: center; margin-bottom: 14px; }
+  .sp .kick { color: #cfe6ff; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; }
+  .sp h1 { margin: 4px 0 2px; font-size: clamp(38px, 8vw, 64px); color: #ffd34d; letter-spacing: 0.04em; line-height: 1; text-shadow: 0 3px 0 rgba(0,0,0,0.25); }
+  .sp .sub { color: #dfe8f2; font-size: 14px; }
+  .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 12px 0; }
+  .tile { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px 6px; text-align: center; }
+  .tile b { display: block; font-size: clamp(16px, 3vw, 22px); color: #fff; }
+  .tile span { font-size: 12px; color: #b9cbe0; }
+  .routebox { background: rgba(0,0,0,0.22); border-radius: 14px; padding: 8px; }
+  .route { width: 100%; height: auto; display: block; }
+  .route .rg { stroke: rgba(255,255,255,0.12); stroke-width: 1; }
+  .route .ry { fill: #8fa5bd; font-size: 12px; text-anchor: end; }
+  .route .rb { fill: rgba(140,170,200,0.25); cursor: pointer; transition: fill 0.2s; }
+  .route .rb.odd { fill: rgba(140,170,200,0.17); }
+  .route .rb.done { fill: rgba(255,211,77,0.55); }
+  .route .rb.done.odd { fill: rgba(255,190,60,0.45); }
+  .route .rb:hover { fill: rgba(255,255,255,0.4); }
+  .route .rl { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+  .route .rd { fill: #dfe8f2; font-size: 14px; font-weight: bold; text-anchor: middle; cursor: pointer; }
+  .route .rs { fill: #ffd34d; stroke: #1d3a5f; stroke-width: 1.5; }
+  .route .rn { fill: #fff; font-size: 11.5px; text-anchor: middle; paint-order: stroke; stroke: #1d3a5f; stroke-width: 3px; }
+  .route .rh { fill: #cfe6ff; font-size: 11px; text-anchor: middle; paint-order: stroke; stroke: #1d3a5f; stroke-width: 3px; }
+  .route .rpk { fill: #ffd34d; font-size: 14px; font-weight: bold; text-anchor: middle; paint-order: stroke; stroke: #1d3a5f; stroke-width: 3px; }
+  .route .rt { fill: #b9cbe0; font-size: 13px; }
+  .rcap { text-align: center; font-size: 12px; color: #9fb4cc; margin-top: 2px; }
+  .you { margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,211,77,0.12); border: 1px solid rgba(255,211,77,0.35); font-size: 14px; text-align: center; }
+  .you .ok { color: #9fef9f; font-weight: bold; }
+  .days { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .day { background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+  .day.done { border-color: rgba(255,211,77,0.5); }
+  .day.sel { border-color: #ffd34d; background: rgba(255,211,77,0.12); }
+  .day .dh { display: flex; justify-content: space-between; font-size: 12px; color: #b9cbe0; }
+  .day .dn { color: #ffd34d; font-weight: bold; }
+  .day .dt { font-size: 17px; font-weight: bold; line-height: 1.2; }
+  .day .dq { font-size: 12.5px; color: #cfe0f0; font-style: italic; }
+  .day .dr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font-size: 12.5px; color: #e6eef6; }
+  .day .src { font-size: 10.5px; color: #8fa5bd; }
+  .day .yb { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 6px 8px; }
+  .day .yb b { color: #ffd34d; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .day .yb i { font-style: normal; }
+  .day .yb .cmp { color: #9fb4cc; font-size: 11px; }
+  .day .yb.none { color: #8fa5bd; font-style: italic; }
+  .day .play { margin-top: auto; font: bold 15px "Trebuchet MS", sans-serif; padding: 9px; border: none; border-radius: 10px; background: #ffd34d; color: #1d2a3a; cursor: pointer; }
+  .how { margin: 16px 0 8px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+  .how summary { cursor: pointer; font-weight: bold; color: #ffd34d; }
+  .how p { margin: 8px 0; color: #dfe8f2; }
+  .sp footer { text-align: center; color: #8fa5bd; font-size: 12px; margin-top: 14px; }
+  @media (max-width: 600px) { .tiles { grid-template-columns: repeat(3, 1fr); } .route .rn, .route .rh { font-size: 15px; } .route .rd { font-size: 18px; } }
+  #mute { z-index: 30; position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px;
     border-radius: 50%; border: none; background: rgba(0,0,0,0.35); color: #fff; font-size: 20px; cursor: pointer; }
 </style>
 </head>
@@ -83,6 +136,7 @@
 </div>
 <button id="mute" aria-label="Toggle sound">♪</button>
 <button id="menu" aria-label="Pause">☰</button>
+<div id="splash"></div>
 <div id="packing"></div>
 <div id="pause">
   <div class="card">
