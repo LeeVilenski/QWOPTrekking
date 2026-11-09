@@ -6,8 +6,8 @@ window.LEVELS = [
     endName: "Ulleri",
     startName: "Birethanti",
     quote: "Up up up",
-    title: "Day 1: Up up up",
-    subtitle: "ACA checkpoint to the teahouse",
+    title: "Day 1: Birethanti to Ulleri",
+    subtitle: "From the ACA checkpoint, up up up to Ulleri",
     date: "29 Oct 2026",
     lengthKm: 3.62,
     profile: [

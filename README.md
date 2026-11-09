@@ -21,7 +21,7 @@ The game opens on a home screen with the real trek totals, an elevation profile 
 Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower legs, more tiring), and leaving useful items out makes certain sections harder (no poles, no rain jacket in the drizzle, slippery rock without grippy socks...). The packing screen shows the day's forecast.
 
 ## Days
-- Day 1: Up up up (ACA checkpoint to the teahouse, 3.62 km)
+- Day 1: Birethanti to Ulleri (3.62 km, "Up up up")
 - Day 2: Ulleri to Ghorepani (7.89 km, +848 m)
 - Day 3: Ghorepani to Chuile, over Thapla Danda (11.64 km, up to 3,199 m then a long descent)
 - Day 4: Down and up to Chhomrong (9.58 km, +713 m, big suspension bridge)
