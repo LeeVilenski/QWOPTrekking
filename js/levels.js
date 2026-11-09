@@ -150,5 +150,59 @@ window.LEVELS = [
       { km: 8.3, say: "Mind the planks!" }
     ],
     ryan: { steps: 21590, moving: "3:57:41", movingSec: 14261, gain: 615 }
+  },
+  {
+    id: 4,
+    title: "Day 4: Down and up to Chhomrong",
+    subtitle: "What goes down must go up",
+    date: "1 Nov 2026",
+    lengthKm: 9.58,
+    finishText: "Cold beer in Chhomrong!",
+    profile: [
+      [0.0, 2260], [0.3, 2195], [0.6, 2150], [0.9, 2075], [1.1, 1985],
+      [1.3, 1930], [1.4, 1922], [1.6, 2005], [1.9, 2025], [2.2, 2045],
+      [2.5, 2030], [2.8, 2058], [3.1, 2075], [3.4, 2115], [3.7, 2175],
+      [4.0, 2195], [4.3, 2200], [4.6, 2265], [4.9, 2280], [5.3, 2305],
+      [5.6, 2300], [5.9, 2318], [6.2, 2325], [6.4, 2347], [6.6, 2335],
+      [6.9, 2280], [7.2, 2200], [7.5, 2120], [7.8, 2040], [8.1, 1970],
+      [8.3, 1930], [8.5, 1892], [8.65, 1898], [8.9, 1965], [9.2, 2020],
+      [9.4, 2035], [9.58, 2065]
+    ],
+    stairs: [[0.4, 1.3], [3.3, 3.9], [4.4, 4.8], [6.7, 7.9], [8.7, 9.58]],
+    snacks: [
+      { km: 1.5, type: "tea" },
+      { km: 3.0, type: "snickers" },
+      { km: 4.7, type: "dalbhat" },
+      { km: 6.4, type: "snickers" },
+      { km: 8.0, type: "tea" },
+      { km: 9.1, type: "snickers" }
+    ],
+    // Finally a clear, hot day
+    weather: [
+      { from: 0.0, to: 9.58, type: "sun" },
+      { from: 5.8, to: 6.6, type: "wind" }
+    ],
+    wet: [[1.3, 1.45], [8.42, 8.55]],
+    // The long suspension bridge in Ryan's selfie, over the Chhomrong Khola
+    bridge: [8.42, 8.68],
+    donkeys: [2.0, 5.0, 7.4],
+    porters: [0.8, 3.6, 6.0, 8.9],
+    scenery: [
+      { km: 0.05, type: "village" },
+      { km: 1.0, type: "flags" },
+      { km: 2.3, type: "village" },
+      { km: 4.0, type: "flags" },
+      { km: 5.5, type: "village" },
+      { km: 6.4, type: "flags" },
+      { km: 9.3, type: "village" },
+      { km: 9.58, type: "teahouse" }
+    ],
+    friends: [
+      { km: 0.5, say: "Sun's out! Finally!" },
+      { km: 2.0, say: "Down. Then up. Then down." },
+      { km: 6.6, say: "Is that Annapurna South?!" },
+      { km: 8.3, say: "Selfie on the bridge!" }
+    ],
+    ryan: { steps: 19652, moving: "3:22:03", movingSec: 12123, gain: 713 }
   }
 ];

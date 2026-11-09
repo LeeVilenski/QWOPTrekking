@@ -123,7 +123,7 @@
     friends = L.friends.map((f, i) => ({ triggerX: kmToX(f.km), say: f.say, x: null, phase: 0, idx: i, done: false, sayT: 0 }));
     popups = [];
     gust = { t: 0, next: 3, force: 0 };
-    weatherIntensity = { drizzle: 0, wind: 0, fog: 0 };
+    weatherIntensity = { drizzle: 0, wind: 0, fog: 0, sun: 0 };
     rainDrops = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.6 }));
     stats = { steps: 0, falls: 0, snacks: 0, bonks: 0 };
     donkeyTrains = (L.donkeys || []).map((km) => ({ x: kmToX(km), started: false }));
@@ -168,6 +168,7 @@
     if (types.has("drizzle")) bits.push("🌧️ drizzle");
     if (types.has("wind")) bits.push("💨 wind gusts");
     if (types.has("fog")) bits.push("🌫️ thick fog");
+    if (types.has("sun")) bits.push("☀️ hot sun");
     if ((L.wet || []).length) bits.push("🪨 wet rock");
     if (L.bridge) bits.push("🌉 wobbly bridge");
     const maxG = L.profile.reduce((a, p, i) => i ? Math.max(a, (p[1] - L.profile[i - 1][1]) / ((p[0] - L.profile[i - 1][0]) * 1000)) : a, 0);
@@ -468,7 +469,7 @@
 
     // Weather blending
     const km = xToKm(P.x);
-    for (const type of ["drizzle", "wind", "fog"]) {
+    for (const type of ["drizzle", "wind", "fog", "sun"]) {
       const on = L.weather.some((z) => z.type === type && km >= z.from && km <= z.to) ? 1 : 0;
       weatherIntensity[type] += (on - weatherIntensity[type]) * Math.min(1, dt * 0.8);
     }
@@ -552,6 +553,10 @@
 
     // Stamina recovers while resting
     let rest = t - P.lastStepT > 0.7 ? (input.poles ? 11 : 7) : 0.5 + (has("water") ? 1.0 : 0) + (has("speaker") ? 0.4 : 0);
+    if (!has("water") && weatherIntensity.sun > 0.5) {
+      rest -= 1.2 * weatherIntensity.sun; // hot and thirsty
+      if (!P.thirstyMsg) { P.thirstyMsg = true; popup("Scorching! Should've packed water.", "#ffd34d", true); }
+    }
     if (!has("jacket") && weatherIntensity.drizzle > 0.5) {
       rest -= 1.6 * weatherIntensity.drizzle; // soaked and cold
       if (!P.soakedMsg) { P.soakedMsg = true; popup("No rain jacket. Soaked!", "#9fd8ff", true); }
@@ -1496,7 +1501,7 @@
     const ax = W - (sm ? 44 : 56), ay = top + 84, ah = Math.min(sm ? 110 : 150, H * 0.3);
     panel(ax - 8, ay - 22, sm ? 44 : 52, ah + 44);
     ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.fillRect(ax, ay, 8, ah);
-    const minE = L.profile[0][1], maxE = L.profile[L.profile.length - 1][1];
+    const minE = Math.min(...L.profile.map((p) => p[1])), maxE = Math.max(...L.profile.map((p) => p[1]));
     const k = (elev - minE) / (maxE - minE);
     ctx.fillStyle = "#7fd0ff"; ctx.fillRect(ax, ay + ah * (1 - k), 8, ah * k);
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ax + 4, ay + ah * (1 - k), 5, 0, Math.PI * 2); ctx.fill();
@@ -1609,7 +1614,7 @@
     const r = L.ryan;
     const ratio = stats.steps ? (r.steps / stats.steps) : 0;
     centerCard([
-      ["Checked in to the teahouse!", 40, "#ffd34d"],
+      [L.finishText || "Checked in to the teahouse!", 40, "#ffd34d"],
       [L.title, 22],
       [" ", 8],
       [`Your time: ${fmtTime(stats.time)}   ·   Ghost Ryan: ${fmtTime(ghost.total)}`, 18],
