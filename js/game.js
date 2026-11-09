@@ -1148,6 +1148,20 @@
     return false;
   }
   function drawTree(x, y, h, k) {
+    if (L.bamboo && inZone(L.bamboo, x)) {
+      // bamboo forest: a clump of tall jointed stalks with leafy tops
+      for (let i = 0; i < 5; i++) {
+        const bx = x + (i - 2) * 0.22 + hash(x + i) * 0.1, bh = h * (1.2 + hash(x * 2 + i) * 0.8);
+        const sway = Math.sin(t * 1.2 + x + i) * 0.1;
+        ctx.strokeStyle = i % 2 ? "#7c9a3c" : "#6a8a32"; ctx.lineWidth = 0.09;
+        ctx.beginPath(); ctx.moveTo(bx, y); ctx.quadraticCurveTo(bx, y + bh * 0.6, bx + sway, y + bh); ctx.stroke();
+        ctx.fillStyle = "rgba(60,80,30,0.6)";
+        for (let j = 1; j < 5; j++) ctx.fillRect(bx - 0.06, y + bh * j / 5, 0.12, 0.03);
+        ctx.fillStyle = k < 0.2 ? "#5d8a3a" : "#6f9c40";
+        ctx.beginPath(); ctx.ellipse(bx + sway, y + bh, 0.45, 0.18, 0.4, 0, Math.PI * 2); ctx.fill();
+      }
+      return;
+    }
     ctx.fillStyle = "#5a4330"; ctx.fillRect(x - 0.08, y, 0.16, h * 0.4);
     ctx.fillStyle = k < 0.15 ? "#2f6b3a" : k < 0.3 ? "#3d7d43" : "#4b8a3e";
     ctx.beginPath(); ctx.ellipse(x, y + h * 0.6, h * 0.38, h * 0.42, 0, 0, Math.PI * 2); ctx.fill();

@@ -204,5 +204,67 @@ window.LEVELS = [
       { km: 8.3, say: "Selfie on the bridge!" }
     ],
     ryan: { steps: 19652, moving: "3:22:03", movingSec: 12123, gain: 713 }
+  },
+  {
+    id: 5,
+    title: "Day 5: Sinuwa to Deurali",
+    subtitle: "Through Bamboo, Dovan and Himalaya. The big one.",
+    date: "2 Nov 2026",
+    lengthKm: 14.08,
+    finishText: "Made it to Deurali!",
+    profile: [
+      [0.0, 2060], [0.5, 2140], [1.0, 2190], [1.5, 2300], [1.8, 2330],
+      [2.2, 2340], [2.6, 2360], [3.0, 2420], [3.3, 2430], [3.6, 2445],
+      [4.0, 2450], [4.2, 2425], [4.4, 2395], [4.6, 2340], [4.9, 2305],
+      [5.1, 2312], [5.3, 2300], [5.6, 2330], [6.0, 2390], [6.5, 2430],
+      [7.0, 2470], [7.3, 2468], [7.8, 2495], [8.3, 2510], [8.6, 2540],
+      [9.0, 2580], [9.4, 2620], [9.8, 2650], [10.2, 2720], [10.6, 2790],
+      [11.0, 2840], [11.5, 2852], [11.8, 2880], [12.2, 2950], [12.6, 3040],
+      [12.9, 3120], [13.2, 3100], [13.5, 3110], [13.8, 3170], [14.08, 3224]
+    ],
+    stairs: [[0.3, 1.6], [2.8, 3.4], [4.2, 4.9], [5.6, 6.1], [10.0, 10.9], [12.1, 12.9], [13.6, 14.08]],
+    bamboo: [[3.4, 6.4]],
+    snacks: [
+      { km: 1.3, type: "tea" },
+      { km: 2.9, type: "snickers" },
+      { km: 4.6, type: "tea" },
+      { km: 6.4, type: "dalbhat" },
+      { km: 8.5, type: "snickers" },
+      { km: 10.3, type: "tea" },
+      { km: 12.0, type: "snickers" },
+      { km: 13.3, type: "tea" }
+    ],
+    weather: [
+      { from: 0.0, to: 3.4, type: "sun" },
+      { from: 6.4, to: 9.5, type: "sun" },
+      { from: 10.8, to: 14.08, type: "fog" },
+      { from: 12.0, to: 14.08, type: "wind" },
+      { from: 12.6, to: 14.08, type: "drizzle" }
+    ],
+    wet: [[4.6, 5.0], [7.2, 7.4], [12.7, 13.1]],
+    bridge: [5.15, 5.27],
+    bridgeStyle: "plank",
+    donkeys: [1.8, 5.8, 9.2],
+    porters: [0.7, 3.2, 6.8, 9.8, 12.4],
+    scenery: [
+      { km: 0.05, type: "village" },
+      { km: 1.1, type: "flags" },
+      { km: 3.0, type: "village" },
+      { km: 6.4, type: "village" },
+      { km: 7.6, type: "flags" },
+      { km: 9.6, type: "village" },
+      { km: 11.6, type: "flags" },
+      { km: 13.9, type: "village" },
+      { km: 14.08, type: "teahouse" }
+    ],
+    friends: [
+      { km: 0.6, say: "Big day today, lads." },
+      { km: 4.0, say: "Welcome to Bamboo!" },
+      { km: 7.0, say: "Dovan for lunch?" },
+      { km: 9.8, say: "Himalaya. The hotel, not the range." },
+      { km: 12.5, say: "Getting chilly up here..." }
+    ],
+    // From Aidan's watch: Ryan hasn't uploaded this one yet
+    ryan: { steps: 24368, moving: "4:55:44", movingSec: 17744, gain: 1571 }
   }
 ];

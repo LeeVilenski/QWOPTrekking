@@ -22,6 +22,7 @@ Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower le
 - Day 2: Ulleri to Ghorepani (7.89 km, +848 m)
 - Day 3: Over Thapla Danda (11.64 km, up to 3,199 m then a long descent)
 - Day 4: Down and up to Chhomrong (9.58 km, +713 m, big suspension bridge)
+- Day 5: Sinuwa to Deurali (14.08 km, +1,571 m, through the bamboo forest; data from Aidan)
 
 Pick a day on the title screen with ← / → (or tap the sides on a phone).
 
