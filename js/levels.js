@@ -104,10 +104,10 @@ window.LEVELS = [
   },
   {
     id: 3,
-    endName: "",
+    endName: "Chuile",
     quote: "Wet and so steps up and down. Hit 3199m today",
-    title: "Day 3: Over Thapla Danda",
-    subtitle: "Up into the fog at 3,199 m, then a long wet descent",
+    title: "Day 3: Ghorepani to Chuile",
+    subtitle: "Ghorepani to Chuile: up into the fog at 3,199 m, then a long wet descent",
     date: "31 Oct 2026",
     lengthKm: 11.64,
     profile: [
