@@ -123,7 +123,7 @@
     friends = L.friends.map((f, i) => ({ triggerX: kmToX(f.km), say: f.say, x: null, phase: 0, idx: i, done: false, sayT: 0 }));
     popups = [];
     gust = { t: 0, next: 3, force: 0 };
-    weatherIntensity = { drizzle: 0, wind: 0, fog: 0, sun: 0 };
+    weatherIntensity = { drizzle: 0, wind: 0, fog: 0, sun: 0, snow: 0 };
     rainDrops = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.6 }));
     stats = { steps: 0, falls: 0, snacks: 0, bonks: 0 };
     donkeyTrains = (L.donkeys || []).map((km) => ({ x: kmToX(km), started: false }));
@@ -169,6 +169,7 @@
     if (types.has("wind")) bits.push("💨 wind gusts");
     if (types.has("fog")) bits.push("🌫️ thick fog");
     if (types.has("sun")) bits.push("☀️ hot sun");
+    if (types.has("snow")) bits.push("❄️ snow and cold");
     if ((L.wet || []).length) bits.push("🪨 wet rock");
     if (L.bridge) bits.push("🌉 wobbly bridge");
     const maxG = L.profile.reduce((a, p, i) => i ? Math.max(a, (p[1] - L.profile[i - 1][1]) / ((p[0] - L.profile[i - 1][0]) * 1000)) : a, 0);
@@ -469,7 +470,7 @@
 
     // Weather blending
     const km = xToKm(P.x);
-    for (const type of ["drizzle", "wind", "fog", "sun"]) {
+    for (const type of ["drizzle", "wind", "fog", "sun", "snow"]) {
       const on = L.weather.some((z) => z.type === type && km >= z.from && km <= z.to) ? 1 : 0;
       weatherIntensity[type] += (on - weatherIntensity[type]) * Math.min(1, dt * 0.8);
     }
@@ -553,6 +554,10 @@
 
     // Stamina recovers while resting
     let rest = t - P.lastStepT > 0.7 ? (input.poles ? 11 : 7) : 0.5 + (has("water") ? 1.0 : 0) + (has("speaker") ? 0.4 : 0);
+    if (!has("windproof") && weatherIntensity.snow > 0.5) {
+      rest -= 1.4 * weatherIntensity.snow; // freezing without the down jacket
+      if (!P.coldMsg) { P.coldMsg = true; popup("Freezing! Should've packed the down jacket.", "#cfe8ff", true); }
+    }
     if (!has("water") && weatherIntensity.sun > 0.5) {
       rest -= 1.2 * weatherIntensity.sun; // hot and thirsty
       if (!P.thirstyMsg) { P.thirstyMsg = true; popup("Scorching! Should've packed water.", "#ffd34d", true); }
@@ -1140,6 +1145,15 @@
       if (h > 0.45) continue;
       const tx = i * 2.2 + hash(i + 9) * 1.5;
       if (inVillage(tx) || (L.bridge && tx > bridge.a - 2 && tx < bridge.b + 2)) continue;
+      const el = elevAt(xToKm(tx));
+      if (L.treeline && el > L.treeline - hash(i + 5) * 150) {
+        // moraine boulders, snow-capped higher up
+        const r = 0.4 + hash(i + 3) * 0.9, by = groundY(tx) - 0.1;
+        ctx.fillStyle = h < 0.2 ? "#7d7a74" : "#8e8a82";
+        ctx.beginPath(); ctx.ellipse(tx, by + r * 0.5, r, r * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+        if (L.snowline && el > L.snowline) { ctx.fillStyle = "#f4f7fa"; ctx.beginPath(); ctx.ellipse(tx, by + r * 0.95, r * 0.75, r * 0.25, 0, 0, Math.PI * 2); ctx.fill(); }
+        continue;
+      }
       drawTree(tx, groundY(tx) - 0.2, 1.6 + hash(i + 3) * 2.2, h);
     }
   }
@@ -1230,7 +1244,17 @@
     lines.forEach((ln, i) => wText(ln, x, y + 3.0 - i * 0.28, i === 1 ? 0.24 : 0.17, "#f4d27a", "center", true));
     if (sub) wText(sub, x, y + 2.3, 0.13, "#ddd", "center", false);
   }
+  // Wide signboard on two posts, like the "Annapurna Base Camp" board
+  function drawBoard(x, lines) {
+    const y = footY(x), w = 4.4;
+    ctx.fillStyle = "#3a2a1e"; ctx.fillRect(x - w / 2 + 0.2, y, 0.14, 2.6); ctx.fillRect(x + w / 2 - 0.34, y, 0.14, 2.6);
+    ctx.fillStyle = "#1d3a2a"; ctx.fillRect(x - w / 2, y + 1.6, w, 1.4);
+    ctx.strokeStyle = "#e9d77a"; ctx.lineWidth = 0.05; ctx.strokeRect(x - w / 2 + 0.08, y + 1.68, w - 0.16, 1.24);
+    lines.forEach((ln, i) => wText(ln, x, y + 2.7 - i * 0.36, i === 1 ? 0.32 : 0.2, "#f4d27a", "center", true));
+    drawFlags(x - w / 2 - 1, x + w / 2 + 1, 3.3);
+  }
   function drawFinishFlag() {
+    if (L.scenery.some((sc) => sc.type === "board" && Math.abs(kmToX(sc.km) - END_X) < 5)) return;
     if (L.scenery.some((sc) => sc.type === "gate")) return; // the gate is the finish line
     const x = END_X - 3.5;
     ctx.strokeStyle = "#555"; ctx.lineWidth = 0.08;
@@ -1305,6 +1329,17 @@
       if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
     }
     ctx.stroke();
+    if (L.snowline) {
+      // snow lying on the ground and the stair edges above the snowline
+      ctx.strokeStyle = "#f4f7fa"; ctx.lineWidth = 0.2;
+      ctx.beginPath(); pen = false;
+      for (let x = x0; x <= x1; x += 0.1) {
+        if (elevAt(xToKm(x)) < L.snowline + hash(Math.floor(x)) * 60 || inBridge(x)) { pen = false; continue; }
+        const y = footY(x) + 0.04;
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
     // path dust
     ctx.strokeStyle = "rgba(200,170,120,0.5)"; ctx.lineWidth = 0.05;
     ctx.beginPath(); pen = false;
@@ -1324,6 +1359,7 @@
       if (s.type === "checkpoint") drawCheckpoint(sx + 4);
       if (s.type === "gate") drawGate(sx);
       if (s.type === "sign") drawRoundSign(sx, s.text || [], s.sub || "");
+      if (s.type === "board") drawBoard(sx, s.text || []);
       if (s.type === "flags") drawFlags(sx - 6, sx + 6, 4.5);
     }
     // snacks
@@ -1441,6 +1477,15 @@
       }
       ctx.stroke();
       ctx.fillStyle = `rgba(210,220,228,${0.25 * d})`; ctx.fillRect(0, 0, W, H);
+    }
+    const sn = weatherIntensity.snow;
+    if (sn > 0.02) {
+      ctx.fillStyle = `rgba(255,255,255,${0.85 * sn})`;
+      for (let i = 0; i < 90; i++) {
+        const fx = ((hash(i) * W + Math.sin(t * 0.8 + i) * 30 - t * 25 * (1 + hash(i + 3))) % W + W) % W;
+        const fy = ((hash(i + 50) * H + t * 40 * (0.6 + hash(i + 7))) % H + H) % H;
+        ctx.beginPath(); ctx.arc(fx, fy, 1.5 + hash(i + 11) * 2, 0, Math.PI * 2); ctx.fill();
+      }
     }
     const wv = weatherIntensity.wind;
     if (wv > 0.05 && gust.t > 0) {

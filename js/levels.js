@@ -266,5 +266,59 @@ window.LEVELS = [
     ],
     // From Aidan's watch: Ryan hasn't uploaded this one yet
     ryan: { steps: 24368, moving: "4:55:44", movingSec: 17744, gain: 1571 }
+  },
+  {
+    id: 6,
+    title: "Day 6: Deurali to ABC",
+    subtitle: "What a day!!!! Up to Annapurna Base Camp, 4,130 m",
+    date: "3 Nov 2026",
+    lengthKm: 7.67,
+    finishText: "ANNAPURNA BASE CAMP, BABYYYY!",
+    treeline: 3550,
+    snowline: 3900,
+    profile: [
+      [0.0, 3200], [0.2, 3195], [0.5, 3230], [0.8, 3282], [1.0, 3300],
+      [1.4, 3305], [1.7, 3310], [2.0, 3340], [2.3, 3368], [2.6, 3420],
+      [3.0, 3480], [3.3, 3540], [3.6, 3600], [3.8, 3628], [3.9, 3600],
+      [4.1, 3650], [4.4, 3700], [4.8, 3780], [5.2, 3840], [5.6, 3900],
+      [6.0, 3930], [6.3, 3960], [6.5, 3978], [6.6, 3962], [6.8, 4010],
+      [7.2, 4060], [7.4, 4092], [7.5, 4085], [7.67, 4138]
+    ],
+    stairs: [[0.4, 0.9], [2.4, 3.6], [4.0, 4.6], [6.6, 7.0]],
+    snacks: [
+      { km: 1.2, type: "tea" },
+      { km: 2.5, type: "snickers" },
+      { km: 4.3, type: "dalbhat" },
+      { km: 5.6, type: "tea" },
+      { km: 6.7, type: "snickers" }
+    ],
+    weather: [
+      { from: 0.0, to: 4.0, type: "sun" },
+      { from: 4.6, to: 7.67, type: "wind" },
+      { from: 5.4, to: 7.67, type: "snow" }
+    ],
+    wet: [[1.5, 1.8], [5.8, 6.2], [7.0, 7.3]],
+    bridge: [1.85, 1.95],
+    bridgeStyle: "plank",
+    donkeys: [],
+    porters: [0.8, 2.8, 5.0, 6.9],
+    scenery: [
+      { km: 0.05, type: "village" },
+      { km: 1.0, type: "flags" },
+      { km: 4.35, type: "village" },
+      { km: 4.45, type: "board", text: ["WELCOME TO", "MACHHAPUCHHRE BASE CAMP", "3700m"] },
+      { km: 5.9, type: "flags" },
+      { km: 7.55, type: "board", text: ["NAMASTE", "ANNAPURNA BASE CAMP", "4130m"] },
+      { km: 7.67, type: "teahouse" }
+    ],
+    friends: [
+      { km: 0.6, say: "Base camp today, boys!" },
+      { km: 3.4, say: "Can you feel the altitude?" },
+      { km: 4.5, say: "MBC! Nearly there!" },
+      { km: 6.3, say: "Snow!! Actual snow!" },
+      { km: 7.3, say: "What a day!!!!" }
+    ],
+    // From Aidan's watch
+    ryan: { steps: 13938, moving: "2:49:58", movingSec: 10198, gain: 1006 }
   }
 ];
