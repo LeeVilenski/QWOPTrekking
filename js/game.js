@@ -1259,8 +1259,22 @@
     lines.forEach((ln, i) => wText(ln, x, y + 2.7 - i * 0.36, i === 1 ? 0.32 : 0.2, "#f4d27a", "center", true));
     drawFlags(x - w / 2 - 1, x + w / 2 + 1, 3.3);
   }
+  // The jeep back to Pokhara, waiting at the end of the trail
+  function drawJeep(x) {
+    const y = footY(x) + 0.35, bob = Math.sin(t * 9) * 0.015;
+    ctx.fillStyle = "#1f1f22";
+    for (const wx of [x - 1.1, x + 1.1]) { ctx.beginPath(); ctx.arc(wx, y, 0.38, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#888"; for (const wx of [x - 1.1, x + 1.1]) { ctx.beginPath(); ctx.arc(wx, y, 0.15, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#2f6b3a"; roundRect(x - 1.8, y + 0.15 + bob, 3.6, 0.8, 0.12); ctx.fill();
+    ctx.fillStyle = "#3d8049"; roundRect(x - 1.5, y + 0.9 + bob, 2.3, 0.75, 0.1); ctx.fill();
+    ctx.fillStyle = "#bfe0f0"; ctx.fillRect(x - 1.35, y + 1.05 + bob, 0.85, 0.48); ctx.fillRect(x - 0.35, y + 1.05 + bob, 0.95, 0.48);
+    ctx.fillStyle = "#555"; ctx.fillRect(x - 1.6, y + 1.65 + bob, 2.6, 0.08); // roof rack
+    ctx.fillStyle = "#c0392b"; ctx.fillRect(x - 1.3, y + 1.73 + bob, 0.7, 0.35); ctx.fillStyle = "#2f6fd6"; ctx.fillRect(x - 0.5, y + 1.73 + bob, 0.8, 0.4);
+    ctx.fillStyle = "#ffd34d"; ctx.fillRect(x + 1.7, y + 0.55 + bob, 0.12, 0.15);
+    wText("POKHARA", x - 0.3, y + 0.55, 0.22, "#fff", "center", true);
+  }
   function drawFinishFlag() {
-    if (L.scenery.some((sc) => sc.type === "board" && Math.abs(kmToX(sc.km) - END_X) < 5)) return;
+    if (L.scenery.some((sc) => (sc.type === "board" || sc.type === "jeep") && Math.abs(kmToX(sc.km) - END_X) < 5)) return;
     if (L.scenery.some((sc) => sc.type === "gate")) return; // the gate is the finish line
     const x = END_X - 3.5;
     ctx.strokeStyle = "#555"; ctx.lineWidth = 0.08;
@@ -1366,6 +1380,7 @@
       if (s.type === "gate") drawGate(sx);
       if (s.type === "sign") drawRoundSign(sx, s.text || [], s.sub || "");
       if (s.type === "board") drawBoard(sx, s.text || []);
+      if (s.type === "jeep") drawJeep(sx);
       if (s.type === "flags") drawFlags(sx - 6, sx + 6, 4.5);
     }
     // snacks
@@ -1688,7 +1703,7 @@
       [ratio > 1 ? `(each of your steps is worth ${ratio.toFixed(1)} Ryan steps. Giant.)` : " ", 15, "#cfe6ff"],
       [`Pack: ${packKg().toFixed(1)} kg   ·   Falls: ${stats.falls}   ·   Sit-downs: ${stats.rests || 0}   ·   Bonks: ${stats.bonks}   ·   Snacks: ${stats.snacks}/${snacks.length}`, 18],
       [stats.falls === 0 ? "Not a single tumble. Sherpa-grade." : stats.falls < 4 ? "A few tumbles. Very authentic." : "The mountain won a few rounds.", 18, "#cfe6ff"],
-      [levelIdx < window.LEVELS.length - 1 ? "Next: " + window.LEVELS[levelIdx + 1].title : "More days coming soon...", 16, "#aaa"]
+      [levelIdx < window.LEVELS.length - 1 ? "Next: " + window.LEVELS[levelIdx + 1].title : "🙏 Annapurna Base Camp trek complete. Namaste, Ryan!", 18, "#9fef9f"]
     ], levelIdx < window.LEVELS.length - 1 ? (isTouch ? "Tap for the next day" : "Press any key for the next day") : (isTouch ? "Tap to return to the start" : "Press any key to return to the start"));
   }
 

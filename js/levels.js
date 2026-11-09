@@ -390,5 +390,54 @@ window.LEVELS = [
     ],
     // From Aidan's watch
     ryan: { steps: 27486, moving: "5:39:44", movingSec: 20384, gain: 422 }
+  },
+  {
+    id: 8,
+    title: "Day 8: Sinuwa to Jhinu Danda",
+    subtitle: "The finale. A short one before the jeep to Pokhara.",
+    date: "5 Nov 2026",
+    lengthKm: 5.93,
+    finishText: "Jeep to Pokhara! TREK COMPLETE!",
+    profile: [
+      [0.0, 2070], [0.2, 2042], [0.4, 2040], [0.5, 2025], [0.6, 2030],
+      [0.8, 1990], [1.0, 1892], [1.1, 1890], [1.3, 1930], [1.6, 1972],
+      [1.9, 2010], [2.1, 2060], [2.3, 2120], [2.5, 2160], [2.6, 2200],
+      [2.8, 2233], [3.0, 2215], [3.2, 2180], [3.5, 2100], [3.8, 2020],
+      [4.1, 1930], [4.4, 1850], [4.7, 1770], [4.9, 1702], [5.0, 1705],
+      [5.1, 1720], [5.3, 1655], [5.5, 1640], [5.7, 1668], [5.93, 1680]
+    ],
+    stairs: [[0.7, 1.05], [1.9, 2.8], [3.1, 4.9]],
+    snacks: [
+      { km: 0.9, type: "tea" },
+      { km: 2.0, type: "snickers" },
+      { km: 2.8, type: "dalbhat" },
+      { km: 4.3, type: "snickers" },
+      { km: 5.4, type: "tea" }
+    ],
+    weather: [
+      { from: 0.0, to: 5.93, type: "sun" }
+    ],
+    wet: [[1.0, 1.15], [5.2, 5.3]],
+    // The swing bridge before the final checkpoint
+    bridge: [5.2, 5.4],
+    donkeys: [1.6, 3.6],
+    porters: [0.4, 2.4, 4.6],
+    scenery: [
+      { km: 0.05, type: "village" },
+      { km: 1.15, type: "flags" },
+      { km: 2.7, type: "village" },
+      { km: 2.95, type: "flags" },
+      { km: 4.0, type: "village" },
+      { km: 5.75, type: "board", text: ["ACA CHECKPOINT", "JHINU DANDA", "Thank you for visiting"] },
+      { km: 5.9, type: "jeep" }
+    ],
+    friends: [
+      { km: 0.3, say: "Last day, lads!" },
+      { km: 1.5, say: "One last climb. Chhomrong." },
+      { km: 3.2, say: "Down, down, down..." },
+      { km: 5.0, say: "Jeep. Beer. Pokhara." }
+    ],
+    // From Aidan's watch
+    ryan: { steps: 11540, moving: "1:58:13", movingSec: 7093, gain: 419 }
   }
 ];

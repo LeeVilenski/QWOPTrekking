@@ -25,6 +25,7 @@ Before each day you pack Ryan's bag. Every item adds weight (wobblier, slower le
 - Day 5: Sinuwa to Deurali (14.08 km, +1,571 m, through the bamboo forest; data from Aidan)
 - Day 6: Deurali to ABC (7.67 km, +1,006 m, up to 4,138 m with snow; data from Aidan)
 - Day 7: ABC to Lower Sinuwa (20.46 km, mostly downhill from a sunrise at 4,120 m; data from Aidan)
+- Day 8: Sinuwa to Jhinu Danda (5.93 km, the finale, ending at the jeep to Pokhara; data from Aidan)
 
 Pick a day on the title screen with ← / → (or tap the sides on a phone).
 
